@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DB_NAME: postgres
+  DB_USER: postgres
+  DB_PASS: postgres
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_DB: $DB_NAME
+          POSTGRES_USER: $DB_USER
+          POSTGRES_PASSWORD: $DB_PASS
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install requirements
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting for PostgreSQL to start..."
+            sleep 2
+          done
+
+      - name: Run migrations
+        env:
+          DB_NAME: $DB_NAME
+          DB_USER: $DB_USER
+          DB_PASS: $DB_PASS
+        run: |
+          python manage.py migrate --noinput
+
+      - name: Run tests
+        env:
+          DB_NAME: $DB_NAME
+          DB_USER: $DB_USER
+          DB_PASS: $DB_PASS
+        run: |
+          python manage.py test
+
+      - name: Check coding style
+        run: |
+          flake8
+
+      - name: Check vulnerable package
+        run: |
+          pip list --format=freeze | skjold -v audit --sources gemnasium -
+
+      - name: Check PostgreSQL logs
+        run: |
+          echo "PostgreSQL logs:"
+          docker logs $(docker ps -q --filter ancestor=postgres:13)
