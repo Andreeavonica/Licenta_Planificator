@@ -51,6 +51,11 @@
                         </div>
                         <form method="post">
                             {% csrf_token %}
+
+                            <div class="form-group">
+                                <label for="id_data_interventie">Data Intervenției:</label>
+                                {{ form.data_interventie }}
+                            </div>
         
                             <div class="form-group">
                                 <label for="id_nume_pacient">Nume Pacient:</label>
@@ -72,10 +77,6 @@
                                 {{ form.timp_estimare }}
                             </div>
                     
-                            <div class="form-group">
-                                <label for="id_data_interventie">Data Intervenției:</label>
-                                {{ form.data_interventie }}
-                            </div>
                     
                             <div class="form-group">
                                 <label for="id_observatii">Observații:</label>
@@ -192,7 +193,7 @@
           
           console.log('clicked')
           var id = arg.event.id;
-          var numePacient = arg.event.extendedProps.nume_pacient || "N/A";
+          var numePacient = arg.event.title || "N/A";  // Acum ar trebui să fie numele pacientului
           var dataInterventie = arg.event.extendedProps.data_interventie || "N/A";
           if (dataInterventie !== "N/A") {
           dataInterventie = formatDateTime(dataInterventie);  
@@ -218,7 +219,6 @@
           nextDay.setAttribute("data-event-id-day", id);
           modal.style.display = 'block' 
           modalTitle.textContent = "Nume Pacient: " + numePacient;
-          modalStart.textContent = "Data Intervenției: " + dataInterventie;
           modalTipOperatie.textContent = "Tip Operație: " + tipOperatie;
           modalConstrangeri.textContent = "Constrângeri Speciale: " + constrangeriSpeciale;
           modalObservatii.textContent = "Observații: " + observatii;

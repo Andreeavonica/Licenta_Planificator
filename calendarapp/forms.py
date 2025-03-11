@@ -26,10 +26,7 @@ class EventForm(ModelForm):
             "timp_estimare": forms.NumberInput(
                 attrs={"class": "form-control", "placeholder": "Introduceți timpul estimat în minute"}
             ),
-            "data_interventie": DateInput(
-                attrs={"type": "datetime-local", "class": "form-control"},
-                format="%Y-%m-%dT%H:%M",
-            ),
+            
             "observatii": forms.Textarea(
                 attrs={"class": "form-control", "placeholder": "Introduceți observații suplimentare"}
             ),
