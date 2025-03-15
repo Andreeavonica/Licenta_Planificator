@@ -112,6 +112,7 @@ class EventMemberDeleteView(generic.DeleteView):
     template_name = "event_delete.html"
     success_url = reverse_lazy("calendarapp:calendar")
 
+from datetime import datetime  # Asigură-te că ai importat datetime
 
 class CalendarViewNew(LoginRequiredMixin, generic.View):
     login_url = "accounts:signin"
@@ -129,6 +130,15 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
         elif status_filter == "in_asteptare":
             events = events.filter(status="in_asteptare")
 
+        # Filtrăm doar evenimentele aprobate care sunt programate după data curentă
+        events_month = Event.objects.filter(
+            user=request.user,
+            is_active=True,
+            is_deleted=False,
+            status="aprobat",  # Doar evenimente aprobate
+            data_interventie__gte=datetime.now().date()  # Numai cele din viitor
+        ).order_by("data_interventie")
+
         event_list = []
         for event in events:
             event_list.append(
@@ -144,8 +154,16 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 }
             )
 
-        context = {"form": forms, "events": event_list, "status_filter": status_filter}
+        print("DEBUG: Events Month", events_month)  # Verificăm în consolă
+
+        context = {
+            "form": forms,
+            "events": event_list,
+            "events_month": events_month,  # Transmitem events_month către calendar.html
+            "status_filter": status_filter,
+        }
         return render(request, self.template_name, context)
+
 
 
     def post(self, request, *args, **kwargs):
