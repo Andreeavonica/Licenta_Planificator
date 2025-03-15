@@ -28,6 +28,8 @@
                       <div class="fc-event">
                           <h3>{{ event.nume_pacient }}</h3>
                           <p>Tip Operație: {{ event.tip_operatie }}</p>
+                          <p>Status: {{ event.get_status_display }}</p>
+
                           <p>Data Intervenției: {{ event.data_interventie }}</p>
 
                       </div>

@@ -39,7 +39,12 @@ class EventManager(models.Manager):
 
 class Event(EventAbstract):
     """ Event model """
-
+    STATUS_CHOICES = [
+        ("in_asteptare", "În Așteptare"),
+        ("aprobat", "Aprobat"),
+        ("respins", "Respins"),
+        ("finalizat", "Finalizat"),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="events")
     nume_pacient = models.CharField(max_length=200, default="Pacient Necunoscut")
     tip_operatie = models.CharField(
@@ -51,10 +56,13 @@ class Event(EventAbstract):
         ],
         default="curata",
     )
+    
     constrangeri_speciale = models.TextField(blank=True, null=True, default="Nicio constrângere")
     timp_estimare = models.IntegerField(default=60)
     data_interventie = models.DateTimeField(default=datetime.now)
     observatii = models.TextField(blank=True, null=True, default="Fără observații")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="in_asteptare")  # Nou status adăugat
+
 
     objects = EventManager()
 
