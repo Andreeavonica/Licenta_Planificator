@@ -41,6 +41,15 @@
             <div class="col-md-9">
                 <div id="calendar"></div>
             </div>
+            <div class="d-flex justify-content-between mb-3">
+                <h3>Filtrează programările:</h3>
+                <div>
+                    <a href="?status=all" class="btn btn-secondary {% if status_filter == 'all' %}active{% endif %}">Toate</a>
+                    <a href="?status=planificat" class="btn btn-success {% if status_filter == 'planificat' %}active{% endif %}">Planificate</a>
+                    <a href="?status=in_asteptare" class="btn btn-warning {% if status_filter == 'in_asteptare' %}active{% endif %}">În Așteptare</a>
+                </div>
+            </div>
+            
 
             <div class="modal fade show" id="eventModal" tabindex="-1" role="dialog">
                 <div class="modal-dialog modal-dialog-centered" role="document">
@@ -147,175 +156,155 @@
 {% block extrascripts %}
 <script src="{% static 'calender/main.js' %}"></script>
 <script>
-  function converterDataParaDjangoFormat(data) {
-      const dataJS = new Date(data);
-      const year = dataJS.getFullYear();
-      const month = (dataJS.getMonth() + 1).toString().padStart(2, '0');
-      const day = dataJS.getDate().toString().padStart(2, '0');
-      const hour = dataJS.getHours().toString().padStart(2, '0');
-      const minute = dataJS.getMinutes().toString().padStart(2, '0');
-      const second = dataJS.getSeconds().toString().padStart(2, '0');
-      const formatoDjango = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-      return formatoDjango;
-      
-  }
+    function converterDataParaDjangoFormat(data) {
+        const dataJS = new Date(data);
+        const year = dataJS.getFullYear();
+        const month = (dataJS.getMonth() + 1).toString().padStart(2, '0');
+        const day = dataJS.getDate().toString().padStart(2, '0');
+        const hour = dataJS.getHours().toString().padStart(2, '0');
+        const minute = dataJS.getMinutes().toString().padStart(2, '0');
+        const second = dataJS.getSeconds().toString().padStart(2, '0');
+        return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-      var calendarEl = document.getElementById('calendar');
-      var today = new Date();
+        var calendarEl = document.getElementById('calendar');
+        var today = new Date();
 
-      var calendar = new FullCalendar.Calendar(calendarEl, {
-        headerToolbar: {
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay,list'
-        },
-        initialDate: today,
-        navLinks: true, // can click day/week names to navigate views
-        selectable: true,
-        selectMirror: true,
-        select: function(arg) {
-          console.log('clicked')
-          console.log(arg.start)
-          console.log(arg.end)
-          var modal = document.getElementById('eventModal')
-          modal.style.display = 'block'
-          document.getElementById('id_data_interventie').value = arg.startStr;
+        var statusFilter = new URLSearchParams(window.location.search).get("status") || "all";
 
-          calendar.unselect()
-        },
-        
-        // THIS KEY WON'T WORK IN PRODUCTION!!!
-        // To make your own Google API key, follow the directions here:
-        // http://fullcalendar.io/docs/google_calendar/
-        // googleCalendarApiKey: 'AIzaSyCqCxjjLtjbtkX37aOtWB8OfwBLy_6QuYk',
+        var eventsFiltered = {{ events|safe }}.filter(event => {
+            if (statusFilter === "planificat") {
+                return event.status === "Aprobat";
+            } else if (statusFilter === "in_asteptare") {
+                return event.status === "În Așteptare";
+            }
+            return true;
+        });
 
-        // bangladesh Holidays
-        // events: 'bn.bd#holiday@group.v.calendar.google.com',
-        eventClick: function(arg) {
-          
-          console.log('clicked')
-          var id = arg.event.id;
-          var numePacient = arg.event.title || "N/A";  // Acum ar trebui să fie numele pacientului
-          var dataInterventie = arg.event.extendedProps.data_interventie || "N/A";
-          if (dataInterventie !== "N/A") {
-          dataInterventie = formatDateTime(dataInterventie);  
-          }
-          var tipOperatie = arg.event.extendedProps.tip_operatie || "N/A";
-          var constrangeriSpeciale = arg.event.extendedProps.constrangeri_speciale || "N/A";
-          var observatii = arg.event.extendedProps.observatii || "N/A";
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay,list'
+            },
+            initialDate: today,
+            navLinks: true,
+            selectable: true,
+            selectMirror: true,
+            select: function(arg) {
+                var modal = document.getElementById('eventModal');
+                modal.style.display = 'block';
+                document.getElementById('id_data_interventie').value = arg.startStr;
+                calendar.unselect();
+            },
 
-          var modal = document.getElementById('detailModal');
-          var modalTitle = document.getElementById('title_event_detail'); 
-          var modalStart = document.getElementById('start_event_detail'); 
-          var modalTipOperatie = document.getElementById('tip_operatie_detail');
-          var modalConstrangeri = document.getElementById('constrangeri_speciale_detail');
-          var modalObservatii = document.getElementById('observatii_detail');
+            eventClick: function(arg) {
+                var id = arg.event.id;
+                var numePacient = arg.event.title || "N/A";  
+                var dataInterventie = arg.event.extendedProps.data_interventie || "N/A";
+                if (dataInterventie !== "N/A") {
+                    dataInterventie = formatDateTime(dataInterventie);  
+                }
+                var tipOperatie = arg.event.extendedProps.tip_operatie || "N/A";
+                var constrangeriSpeciale = arg.event.extendedProps.constrangeri_speciale || "N/A";
+                var observatii = arg.event.extendedProps.observatii || "N/A";
 
-          var deleteButton = document.getElementById("delete-event-button");
-          var nextWeek = document.getElementById("add-to-next-week");
-          var nextDay = document.getElementById("add-to-next-day");
+                var modal = document.getElementById('detailModal');
+                document.getElementById('title_event_detail').textContent = "Nume Pacient: " + numePacient;
+                document.getElementById('tip_operatie_detail').textContent = "Tip Operație: " + tipOperatie;
+                document.getElementById('constrangeri_speciale_detail').textContent = "Constrângeri Speciale: " + constrangeriSpeciale;
+                document.getElementById('observatii_detail').textContent = "Observații: " + observatii;
 
+                document.getElementById("delete-event-button").setAttribute("data-event-id", id);
+                document.getElementById("add-to-next-week").setAttribute("data-event-id-week", id);
+                document.getElementById("add-to-next-day").setAttribute("data-event-id-day", id);
 
-          deleteButton.setAttribute("data-event-id", id);
-          nextWeek.setAttribute("data-event-id-week", id);
-          nextDay.setAttribute("data-event-id-day", id);
-          modal.style.display = 'block' 
-          modalTitle.textContent = "Nume Pacient: " + numePacient;
-          modalTipOperatie.textContent = "Tip Operație: " + tipOperatie;
-          modalConstrangeri.textContent = "Constrângeri Speciale: " + constrangeriSpeciale;
-          modalObservatii.textContent = "Observații: " + observatii;
-          
-         
-          modal.style.display = 'block';
-        },
-        editable: true,
-        dayMaxEvents: true, // allow "more" link when too many events
-        events: {{ events|safe }},
-        
-      });
+                modal.style.display = 'block';
+            },
+            editable: true,
+            dayMaxEvents: true,
+            events: eventsFiltered,
+        });
 
-      calendar.render();
+        calendar.render();
     });
+
     const closeBtn1 = document.getElementById('modalClose1');
     const closeBtn2 = document.getElementById('modalClose2');
     const closeBtn3 = document.getElementById('modalDetailClose');
-    closeBtn1.addEventListener('click',()=>{
-      const eventModal = document.getElementById('eventModal')
-      eventModal.style.display = 'none';
-    });
-    closeBtn2.addEventListener('click',()=>{
-      const eventModal = document.getElementById('eventModal')
-      eventModal.style.display = 'none';
-    });
-    closeBtn3.addEventListener('click',()=>{
-      const eventModal = document.getElementById('detailModal')
-      eventModal.style.display = 'none';
-    });
-    function formatDateTime(dateTime) {
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' };
-      const dataFormatada = new Date(dateTime).toLocaleDateString('en-US', options);
-      return dataFormatada;
-    };
-    document.getElementById('delete-event-button').addEventListener('click', function() {
-      const eventId = this.getAttribute('data-event-id');
-      if (confirm('Are you sure you want to delete this event?')) {
-          $.ajax({
-              url: `/delete_event/${eventId}/`,
-              type: 'POST',
-              data: {
-                  csrfmiddlewaretoken: '{{ csrf_token }}',
-              },
-              success: function(response) {
-                  alert(response.message);
-                  window.location.reload();
-              },
-              error: function(xhr, status, error) {
-                  alert('Error!');
-              }
-          
-          });
-      }});
-      
-      document.getElementById('add-to-next-week').addEventListener('click', function() {
-          const eventId = this.getAttribute('data-event-id-week');
-          if (confirm('Are you sure you want add this event to next week?')) {
-              $.ajax({
-                url: `/next_week/${eventId}/`,
-                  type: 'POST',
-                  data: {
-                      csrfmiddlewaretoken: '{{ csrf_token }}',
-                  },
-                  success: function(response) {
-                      alert(response.message);
-                      window.location.reload();
-                  },
-                  error: function(xhr, status, error) {
-                      alert('Error!');
-                  }
-              });
-          }
-  });
 
-  document.getElementById('add-to-next-day').addEventListener('click', function() {
-    const eventId = this.getAttribute('data-event-id-day');
-    if (confirm('Are you sure you want add this event to next day?')) {
-        $.ajax({
-          url: `/next_day/${eventId}/`,
-            type: 'POST',
-            data: {
-                csrfmiddlewaretoken: '{{ csrf_token }}',
-            },
-            success: function(response) {
-                alert(response.message);
-                window.location.reload();
-            },
-            error: function(xhr, status, error) {
-                alert('Error!');
-            }
-        });
+    closeBtn1.addEventListener('click', () => {
+        document.getElementById('eventModal').style.display = 'none';
+    });
+    closeBtn2.addEventListener('click', () => {
+        document.getElementById('eventModal').style.display = 'none';
+    });
+    closeBtn3.addEventListener('click', () => {
+        document.getElementById('detailModal').style.display = 'none';
+    });
+
+    function formatDateTime(dateTime) {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' };
+        return new Date(dateTime).toLocaleDateString('en-US', options);
     }
-});
+
+    document.getElementById('delete-event-button').addEventListener('click', function() {
+        const eventId = this.getAttribute('data-event-id');
+        if (confirm('Are you sure you want to delete this event?')) {
+            $.ajax({
+                url: `/delete_event/${eventId}/`,
+                type: 'POST',
+                data: { csrfmiddlewaretoken: '{{ csrf_token }}' },
+                success: function(response) {
+                    alert(response.message);
+                    window.location.reload();
+                },
+                error: function(xhr, status, error) {
+                    alert('Error!');
+                }
+            });
+        }
+    });
+
+    document.getElementById('add-to-next-week').addEventListener('click', function() {
+        const eventId = this.getAttribute('data-event-id-week');
+        if (confirm('Are you sure you want to add this event to next week?')) {
+            $.ajax({
+                url: `/next_week/${eventId}/`,
+                type: 'POST',
+                data: { csrfmiddlewaretoken: '{{ csrf_token }}' },
+                success: function(response) {
+                    alert(response.message);
+                    window.location.reload();
+                },
+                error: function(xhr, status, error) {
+                    alert('Error!');
+                }
+            });
+        }
+    });
+
+    document.getElementById('add-to-next-day').addEventListener('click', function() {
+        const eventId = this.getAttribute('data-event-id-day');
+        if (confirm('Are you sure you want to add this event to next day?')) {
+            $.ajax({
+                url: `/next_day/${eventId}/`,
+                type: 'POST',
+                data: { csrfmiddlewaretoken: '{{ csrf_token }}' },
+                success: function(response) {
+                    alert(response.message);
+                    window.location.reload();
+                },
+                error: function(xhr, status, error) {
+                    alert('Error!');
+                }
+            });
+        }
+    });
 
 </script>
+
+
 {% endblock extrascripts %}
 

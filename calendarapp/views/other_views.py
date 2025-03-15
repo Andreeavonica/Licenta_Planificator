@@ -120,15 +120,21 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
 
     def get(self, request, *args, **kwargs):
         forms = self.form_class()
-        events = Event.objects.get_all_events(user=request.user)
-        events_month = Event.objects.get_running_events(user=request.user)
-        event_list = []
+        status_filter = request.GET.get("status", "all")  # Preluăm filtrul din URL
 
+        # Obținem toate evenimentele în funcție de status
+        events = Event.objects.filter(user=request.user, is_active=True, is_deleted=False)
+        if status_filter == "planificat":
+            events = events.filter(status="aprobat")
+        elif status_filter == "in_asteptare":
+            events = events.filter(status="in_asteptare")
+
+        event_list = []
         for event in events:
             event_list.append(
                 {
                     "id": event.id,
-                    "title": event.nume_pacient,  # Asigură-te că e corect!
+                    "title": event.nume_pacient, 
                     "nume_pacient": event.nume_pacient,
                     "tip_operatie": event.tip_operatie,
                     "start": event.data_interventie.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -138,8 +144,9 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 }
             )
 
-        context = {"form": forms, "events": event_list, "events_month": events_month}
+        context = {"form": forms, "events": event_list, "status_filter": status_filter}
         return render(request, self.template_name, context)
+
 
     def post(self, request, *args, **kwargs):
         forms = self.form_class(request.POST)
