@@ -26,19 +26,25 @@
                                 <table class="table table-hover table-bordered dataTable no-footer" id="sampleTable" role="grid" aria-describedby="sampleTable_info">
                                     <thead>
                                         <tr role="row">
-                                            <th class="sorting_asc" tabindex="0" aria-controls="sampleTable" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Name: activate to sort column descending" style="width: 261.641px;">SL</th>
-                                            <th class="sorting" tabindex="0" aria-controls="sampleTable" rowspan="1" colspan="1" aria-label="Position: activate to sort column ascending" style="width: 417.312px;">Event Name</th>
-                                            <th class="sorting" tabindex="0" aria-controls="sampleTable" rowspan="1" colspan="1" aria-label="Office: activate to sort column ascending" style="width: 189.281px;">Start Time</th>
-                                            <th class="sorting" tabindex="0" aria-controls="sampleTable" rowspan="1" colspan="1" aria-label="Age: activate to sort column ascending" style="width: 102.141px;">End Time</th>
+                                            <th>SL</th>
+                                            <th>Nume Pacient</th> <!-- Modificat de la Event Name -->
+                                            <th>Data Intervenției</th> <!-- Modificat de la Start Time -->
+                                            <th>Tip  Operatie</th> <!-- Nouă coloană pentru status -->
+                                            <th>Status</th> <!-- Nouă coloană pentru status -->
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for event in object_list %}
                                             <tr role="row" class="odd">
-                                                <td class="sorting_1">{{ forloop.counter }}</td>
-                                                <td>{{ event.title }}</td>
-                                                <td>{{ event.start_time }}</td>
-                                                <td>{{ event.end_time }}</td>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>{{ event.nume_pacient }}</td>  <!-- Afișează numele pacientului -->
+                                                <td>{{ event.data_interventie }}</td>  <!-- Afișează doar data intervenției -->                                            
+                                                <td>{{ event.tip_operatie }}</td>
+                                                <td>{{ event.get_status_display }}</td>  <!-- Afișează statusul în format lizibil -->
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="4">Nu există evenimente înregistrate.</td>
                                             </tr>
                                         {% endfor %}
                                     </tbody>
