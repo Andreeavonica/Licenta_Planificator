@@ -134,6 +134,7 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                     "start": event.data_interventie.strftime("%Y-%m-%dT%H:%M:%S"),
                     "constrangeri_speciale": event.constrangeri_speciale,
                     "observatii": event.observatii,
+                    "status": event.get_status_display()
                 }
             )
 
