@@ -3,58 +3,139 @@
 
 {% block title %}Planificare - Orar{% endblock title %}
 
+{% block style %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    .surgery {
+        background-color: #f0ad4e;
+        border-radius: 5px;
+        color: white;
+        text-align: center;
+        padding: 5px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    .time-slot, .room-header {
+        text-align: center;
+        vertical-align: middle;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+    }
+    th {
+        background-color: #007bff;
+        color: white;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
-  <h1>Planificare Intervenții (Orar)</h1>
-  <p>Selectează data și apasă “Planifică” pentru a rula algoritmul de planificare.</p>
+    <h1 class="text-center">Planificare Intervenții (Orar)</h1>
+    <p class="text-center">Selectează data și apasă “Planifică” pentru a genera orarul.</p>
 
-  <!-- Câmp de tip date + buton -->
-  <input type="date" id="selectedDate" class="form-control w-auto d-inline">
-  <button class="btn btn-primary" onclick="runSchedule()">Planifică</button>
+    <!-- Selectare dată și buton -->
+    <div class="text-center mb-3">
+        <input type="date" id="selectedDate" class="form-control w-auto d-inline">
+        <button class="btn btn-primary ms-2" onclick="runSchedule()">Planifică</button>
+    </div>
 
-  <!-- Zonă unde vom afișa rezultatul din JSON -->
-  <div id="output" class="mt-3"></div>
+    <!-- Zona unde se va afișa tabelul -->
+    <div id="output" class="mt-3"></div>
 </div>
 
 <script>
 function runSchedule() {
-    // 1) Luăm valoarea din input
     const selectedDate = document.getElementById("selectedDate").value;
     if (!selectedDate) {
-      alert("Vă rugăm să selectați o dată validă!");
-      return;
+        alert("Vă rugăm să selectați o dată validă!");
+        return;
     }
 
-    // 2) Facem un fetch GET către /run-schedule/?date=...
-    //    Folosim URL-ul din Django: {% url 'calendarapp:run_schedule' %}
     fetch("{% url 'calendarapp:run_schedule' %}?date=" + selectedDate)
-      .then(response => response.json())
-      .then(data => {
-          if (data.error) {
-              // În caz de eroare
-              document.getElementById('output').innerHTML = 
-                  `<div class="text-danger"><strong>Eroare:</strong> ${data.error}</div>`;
-              return;
-          }
+        .then(response => response.json())
+        .then(data => {
+            const outputElement = document.getElementById('output');
+            outputElement.innerHTML = ""; 
 
-          // 3) "data.room_allocations" e un array: [ { room: X, schedule: [ {surgery, start_time, end_time}, ... ] }, ... ]
-          // Construim un HTML cu rezultatele
-          let html = "";
-          data.room_allocations.forEach(room => {
-              html += `<h3>Sală ${room.room}</h3><ul>`;
-              room.schedule.forEach(ev => {
-                  html += `<li>${ev.surgery} - ${ev.start_time} → ${ev.end_time}</li>`;
-              });
-              html += `</ul>`;
-          });
+            if (data.error) {
+                outputElement.innerHTML = 
+                    `<div class="alert alert-danger"><strong>Eroare:</strong> ${data.error}</div>`;
+                return;
+            }
 
-          document.getElementById('output').innerHTML = html;
-      })
-      .catch(error => {
-          // Eroare rețea, server, etc.
-          document.getElementById('output').innerHTML = 
-              `<div class="text-danger">Eroare la request: ${error}</div>`;
-      });
+            // Construim tabelul pentru afisarea interventiilor
+            let html = `<div class="table-responsive">
+                            <table class="table table-bordered text-center">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Sală</th>
+                                        <th>08:00</th>
+                                        <th>08:30</th>
+                                        <th>09:00</th>
+                                        <th>09:30</th>
+                                        <th>10:00</th>
+                                        <th>10:30</th>
+                                        <th>11:00</th>
+                                        <th>11:30</th>
+                                        <th>12:00</th>
+                                        <th>12:30</th>
+                                        <th>13:00</th>
+                                        <th>13:30</th>
+                                        <th>14:00</th>
+                                        <th>14:30</th>
+                                        <th>15:00</th>
+                                        <th>15:30</th>
+                                        <th>16:00</th>
+                                        <th>16:30</th>
+                                        <th>17:00</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+            // Mapăm sălile și alocăm operațiile la orele potrivite
+            data.room_allocations.forEach(room => {
+                let rowHtml = `<tr><td><b>Sală ${room.room}</b></td>`;
+                let timeSlots = Array(19).fill(""); // 08:00 - 17:00 (30 min per slot)
+
+                room.schedule.forEach(ev => {
+                    const startIdx = parseTimeToIndex(ev.start_time);
+                    const endIdx = parseTimeToIndex(ev.end_time);
+
+                    for (let i = startIdx; i < endIdx; i++) {
+                        timeSlots[i] = `<div class="surgery">${ev.surgery}</div>`;
+                    }
+                });
+
+                // Populăm tabelul cu operațiile mapate
+                timeSlots.forEach(slot => {
+                    rowHtml += `<td>${slot}</td>`;
+                });
+
+                rowHtml += `</tr>`;
+                html += rowHtml;
+            });
+
+            html += `</tbody></table></div>`;
+            outputElement.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('output').innerHTML = 
+                `<div class="alert alert-danger">Eroare la request: ${error}</div>`;
+        });
+}
+
+// Funcție pentru a converti ora într-un index pentru tabel
+function parseTimeToIndex(timeString) {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return (hours - 8) * 2 + Math.floor(minutes / 30); // Începe de la 08:00
 }
 </script>
-{% endblock content %}
+{% endblock %}
