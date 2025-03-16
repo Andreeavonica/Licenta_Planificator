@@ -63,6 +63,13 @@ class Event(EventAbstract):
     observatii = models.TextField(blank=True, null=True, default="Fără observații")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="in_asteptare")  # Nou status adăugat
 
+    sala_alocata = models.CharField(max_length=20, blank=True, null=True, default="Nicio informatie")
+    ora_inceput = models.TimeField(blank=True, null=True)
+    ora_sfarsit = models.TimeField(blank=True, null=True)
+    durata = models.IntegerField(blank=True, null=True)  
+
+
+
 
     objects = EventManager()
 

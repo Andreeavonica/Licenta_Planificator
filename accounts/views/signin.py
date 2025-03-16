@@ -22,7 +22,7 @@ class SignInView(View):
             if user:
                 login(request, user)
                 if user.role == "manager":
-                    return redirect("manager_dashboard")  # Dashboard pentru manageri
+                    return redirect("calendarapp:calendar")  # Dashboard pentru manageri
                 elif user.role == "surgeon":
                    return redirect("calendarapp:calendar") # Dashboard pentru chirurgi
                 return redirect("patient_dashboard")  # Dashboard pentru pacienți

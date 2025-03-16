@@ -1,13 +1,14 @@
 from django.urls import path
 
 from . import views
+from .views import other_views
 
 app_name = "calendarapp"
 
 
 urlpatterns = [
-    path("calender/", views.CalendarViewNew.as_view(), name="calendar"),
-    path("calenders/", views.CalendarView.as_view(), name="calendars"),
+    path("calendar/", views.CalendarViewNew.as_view(), name="calendar"),
+    path("calendars/", views.CalendarView.as_view(), name="calendars"),
     path('delete_event/<int:event_id>/', views.delete_event, name='delete_event'),
     path('next_week/<int:event_id>/', views.next_week, name='next_week'),
     path('next_day/<int:event_id>/', views.next_day, name='next_day'),
@@ -38,4 +39,7 @@ urlpatterns = [
         views.CompletedEventsListView.as_view(),
         name="completed_events",
     ),
+    path("orar/", other_views.schedule_page, name="orar"),
+    path("run-schedule/", other_views.run_schedule, name="run_schedule"),
+
 ]

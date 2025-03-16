@@ -1,0 +1,60 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Planificare - Orar{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1>Planificare Intervenții (Orar)</h1>
+  <p>Selectează data și apasă “Planifică” pentru a rula algoritmul de planificare.</p>
+
+  <!-- Câmp de tip date + buton -->
+  <input type="date" id="selectedDate" class="form-control w-auto d-inline">
+  <button class="btn btn-primary" onclick="runSchedule()">Planifică</button>
+
+  <!-- Zonă unde vom afișa rezultatul din JSON -->
+  <div id="output" class="mt-3"></div>
+</div>
+
+<script>
+function runSchedule() {
+    // 1) Luăm valoarea din input
+    const selectedDate = document.getElementById("selectedDate").value;
+    if (!selectedDate) {
+      alert("Vă rugăm să selectați o dată validă!");
+      return;
+    }
+
+    // 2) Facem un fetch GET către /run-schedule/?date=...
+    //    Folosim URL-ul din Django: {% url 'calendarapp:run_schedule' %}
+    fetch("{% url 'calendarapp:run_schedule' %}?date=" + selectedDate)
+      .then(response => response.json())
+      .then(data => {
+          if (data.error) {
+              // În caz de eroare
+              document.getElementById('output').innerHTML = 
+                  `<div class="text-danger"><strong>Eroare:</strong> ${data.error}</div>`;
+              return;
+          }
+
+          // 3) "data.room_allocations" e un array: [ { room: X, schedule: [ {surgery, start_time, end_time}, ... ] }, ... ]
+          // Construim un HTML cu rezultatele
+          let html = "";
+          data.room_allocations.forEach(room => {
+              html += `<h3>Sală ${room.room}</h3><ul>`;
+              room.schedule.forEach(ev => {
+                  html += `<li>${ev.surgery} - ${ev.start_time} → ${ev.end_time}</li>`;
+              });
+              html += `</ul>`;
+          });
+
+          document.getElementById('output').innerHTML = html;
+      })
+      .catch(error => {
+          // Eroare rețea, server, etc.
+          document.getElementById('output').innerHTML = 
+              `<div class="text-danger">Eroare la request: ${error}</div>`;
+      });
+}
+</script>
+{% endblock content %}

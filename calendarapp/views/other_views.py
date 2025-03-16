@@ -14,6 +14,8 @@ from calendarapp.utils import Calendar
 from calendarapp.forms import EventForm, AddMemberForm
 
 
+
+
 def get_date(req_day):
     if req_day:
         year, month = (int(x) for x in req_day.split("-"))
@@ -208,3 +210,21 @@ def next_day(request, event_id):
         return JsonResponse({"message": "Success!"})
     else:
         return JsonResponse({"message": "Error!"}, status=400)
+    
+
+
+from calendarapp.optimization import schedule_surgeries
+
+def run_schedule(request):
+    selected_date = request.GET.get("date")
+    if not selected_date:
+        return JsonResponse({"error": "Nicio dată selectată"}, status=400)
+    try:
+        result = schedule_surgeries(selected_date)
+        return JsonResponse({"room_allocations": result})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    
+def schedule_page(request):
+    return render(request, "calendarapp/schedule.html")
+
