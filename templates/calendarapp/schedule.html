@@ -42,8 +42,6 @@
     <p class="text-center">Selectează data și apasă “Planifică” pentru a genera orarul.</p>
 
     <!-- Selectare dată și buton -->
-    {% if request.user.is_authenticated and request.user.role == "manager" %}
-    {% endif %}
     <div class="text-center mb-3">
         <input type="date" id="selectedDate" class="form-control w-auto d-inline">
         <button class="btn btn-primary ms-2" onclick="runSchedule()">Planifică</button>
@@ -57,8 +55,6 @@
 </div>
 
 <script>
-
-let lastScheduleData = null;
 function runSchedule() {
     const selectedDate = document.getElementById("selectedDate").value;
     if (!selectedDate) {
@@ -69,7 +65,7 @@ function runSchedule() {
     fetch("{% url 'calendarapp:run_schedule' %}?date=" + selectedDate)
         .then(response => response.json())
         .then(data => {
-            lastScheduleData = data;
+            lastScheduleData = data;  // salvăm pentru confirmare
             const outputElement = document.getElementById('output');
             outputElement.innerHTML = ""; 
 
@@ -140,12 +136,6 @@ function runSchedule() {
         });
 }
 
-// Funcție pentru a converti ora într-un index pentru tabel
-function parseTimeToIndex(timeString) {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return (hours - 8) * 2 + Math.floor(minutes / 30); // Începe de la 08:00
-}
-
 
 function confirmSchedule() {
     if (!lastScheduleData) {
@@ -169,6 +159,11 @@ function confirmSchedule() {
     .catch(error => {
         alert("Eroare la confirmare: " + error);
     });
+}
+// Funcție pentru a converti ora într-un index pentru tabel
+function parseTimeToIndex(timeString) {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return (hours - 8) * 2 + Math.floor(minutes / 30); // Începe de la 08:00
 }
 </script>
 {% endblock %}
