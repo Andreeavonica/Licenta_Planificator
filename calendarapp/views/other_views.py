@@ -13,7 +13,9 @@ from calendarapp.models import EventMember, Event
 from calendarapp.utils import Calendar
 from calendarapp.forms import EventForm, AddMemberForm
 
-
+from django.views.decorators.csrf import csrf_exempt
+from calendarapp.models import Event
+from datetime import datetime, time
 
 
 def get_date(req_day):
@@ -228,3 +230,36 @@ def run_schedule(request):
 def schedule_page(request):
     return render(request, "calendarapp/schedule.html")
 
+@csrf_exempt
+def confirm_schedule(request):
+    if request.method == "POST":
+        import json
+        data = json.loads(request.body)
+
+        for room in data.get("room_allocations", []):
+            for surgery in room.get("schedule", []):
+                try:
+                    # Căutăm intervenția după nume
+                    event = Event.objects.get(id=surgery["id"])
+                    # Convertim ora_start / ora_sfarsit
+                    start_parts = surgery["start_time"].split(":")
+                    end_parts = surgery["end_time"].split(":")
+                    ora_inceput = time(hour=int(start_parts[0]), minute=int(start_parts[1]))
+                    ora_sfarsit = time(hour=int(end_parts[0]), minute=int(end_parts[1]))
+
+                    # Calculăm durata în minute
+                    durata = (int(end_parts[0]) * 60 + int(end_parts[1])) - (int(start_parts[0]) * 60 + int(start_parts[1]))
+
+                    # Salvăm în event
+                    event.ora_inceput = ora_inceput
+                    event.ora_sfarsit = ora_sfarsit
+                    event.durata = durata
+                    event.status = "aprobat"
+                    event.save()
+
+                except Event.DoesNotExist:
+                    continue
+
+        return JsonResponse({"message": "Planificarea a fost confirmată și salvată cu succes!"})
+    else:
+        return JsonResponse({"error": "Invalid request"}, status=400)

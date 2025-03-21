@@ -193,6 +193,7 @@ def schedule_surgeries(selected_date):
             end_time = start_time + surgery["duration"]
 
             room_timetable["schedule"].append({
+                "id": surgery["id"], 
                 "surgery": surgery["name"],
                 "start_time": f"{start_time // 60}:{start_time % 60:02d}",
                 "end_time": f"{end_time // 60}:{end_time % 60:02d}"
