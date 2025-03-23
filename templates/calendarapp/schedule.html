@@ -151,7 +151,7 @@ function confirmSchedule() {
         alert("Eroare la confirmare: " + error);
     });
 }
-// Funcție pentru a converti ora într-un index pentru tabel
+// Funcție pentru a converti ora într-un index pentru tabel   
 function parseTimeToIndex(timeString) {
     const [hours, minutes] = timeString.split(':').map(Number);
     return (hours - 8) * 2 + Math.floor(minutes / 30); // Începe de la 08:00
