@@ -3,56 +3,47 @@
 
 {% block title %}Planificare - Orar{% endblock title %}
 
-{% block style %}
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-    .surgery {
-        background-color: #f0ad4e;
-        border-radius: 5px;
-        color: white;
-        text-align: center;
-        padding: 5px;
-        font-size: 14px;
-        font-weight: bold;
-    }
-    .time-slot, .room-header {
-        text-align: center;
-        vertical-align: middle;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: center;
-    }
-    th {
-        background-color: #007bff;
-        color: white;
-        font-weight: bold;
-    }
-</style>
-{% endblock %}
+{% block extracss %}
+  <link href="{% static 'calender/main.css' %}" rel="stylesheet" />
+{% endblock extracss %}
+
+{% block breadcrumb %}
+  <div>
+    <h1><i class="fa fa-calendar"></i> Planificare Intervenții</h1>
+    <p>Orar automat pentru intervenții chirurgicale</p>
+  </div>
+  <ul class="app-breadcrumb breadcrumb">
+    <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+    <li class="breadcrumb-item"><a href="#">Orar</a></li>
+  </ul>
+{% endblock breadcrumb %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="text-center">Planificare Intervenții (Orar)</h1>
-    <p class="text-center">Selectează data și apasă “Planifică” pentru a genera orarul.</p>
+<div class="row">
+  <div class="col-md-12">
+    <div class="tile">
 
-    <!-- Selectare dată și buton -->
-    <div class="text-center mb-3">
-        <input type="date" id="selectedDate" class="form-control w-auto d-inline">
-        <button class="btn btn-primary ms-2" onclick="runSchedule()">Planifică</button>
+      {% if request.user.is_authenticated and request.user.role == "manager" %}
+
+      <div class="text-center mb-3">
+          <input type="date" id="selectedDate" class="form-control w-auto d-inline">
+          <button class="btn btn-primary ms-2" onclick="runSchedule()">Planifică</button>
+      </div>
+      <div class="text-center mt-3">
+          <button class="btn btn-success" id="confirmButton" onclick="confirmSchedule()">Confirmă Planificarea</button>
+      </div>
+      {% endif %}
+
+      <div id="output" class="table-responsive">
+        <!-- Orarul generat va apărea aici -->
+      </div>
+
     </div>
-    <div class="text-center mt-3">
-        <button class="btn btn-success" id="confirmButton" onclick="confirmSchedule()">Confirmă Planificarea</button>
-    </div>
-    
-    <!-- Zona unde se va afișa tabelul -->
-    <div id="output" class="mt-3"></div>
+  </div>
 </div>
+{% endblock content %}
+
+{% block extrascripts %}
 
 <script>
 function runSchedule() {
@@ -166,4 +157,4 @@ function parseTimeToIndex(timeString) {
     return (hours - 8) * 2 + Math.floor(minutes / 30); // Începe de la 08:00
 }
 </script>
-{% endblock %}
+{% endblock extrascripts %}
