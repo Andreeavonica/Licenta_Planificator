@@ -4,7 +4,7 @@ from mealpy.utils.problem import FloatVar
 from datetime import datetime
 import random
 
-# Fetch data for a specific day
+
 def fetch_data(selected_date):
     connection = sqlite3.connect("db.sqlite3")
     cursor = connection.cursor()
@@ -16,28 +16,24 @@ def fetch_data(selected_date):
     rooms = cursor.fetchall()
 
     cursor.execute("""
-        SELECT id, nume_pacient, tip_operatie_id, timp_estimare, data_interventie, user_id
-        FROM calendarapp_event
-        WHERE strftime('%Y-%m-%d', data_interventie) = ?
-          AND status = 'in_asteptare'
+        SELECT 
+            e.id, 
+            e.nume_pacient, 
+            o.Nume, 
+            e.timp_estimare, 
+            e.data_interventie, 
+            e.user_id,
+            o.Laparoscopic, 
+            o.OperatieCurata, 
+            o.NecesitaIntubare
+        FROM calendarapp_event e
+        JOIN calendarapp_operatie o ON e.tip_operatie_id = o.id
+        WHERE strftime('%Y-%m-%d', e.data_interventie) = ?
+          AND e.status = 'in_asteptare'
     """, (selected_date,))
     surgeries = cursor.fetchall()
 
-    cursor.execute("""
-        SELECT Nume, Laparoscopic, OperatieCurata, NecesitaIntubare
-        FROM calendarapp_operatie
-    """)
-    operation_rows = cursor.fetchall()
     connection.close()
-
-    operation_map = {
-        row[0]: {
-            "laparoscopic": row[1],
-            "curata": row[2],
-            "intubare": row[3]
-        }
-        for row in operation_rows
-    }
 
     room_data = [
         {
@@ -51,7 +47,6 @@ def fetch_data(selected_date):
 
     surgery_data = []
     for s in surgeries:
-        extra = operation_map.get(s[2], {"laparoscopic": 0, "curata": 1, "intubare": 1})
         surgery_data.append({
             "id": s[0],
             "name": s[1],
@@ -59,15 +54,17 @@ def fetch_data(selected_date):
             "duration": s[3],
             "date": s[4],
             "surgeon": s[5],
-            "laparoscopic": extra["laparoscopic"],
-            "curata": extra["curata"],
-            "intubare": extra["intubare"]
+            "laparoscopic": s[6],
+            "curata": s[7],
+            "intubare": s[8]
         })
 
     return room_data, surgery_data
 
+
 def calculate_cleaning_time(surgery):
     return 10 if surgery["curata"] else 30
+
 
 def is_room_compatible(room, surgery):
     if surgery["intubare"] and room["id"] >= 10:
@@ -75,6 +72,7 @@ def is_room_compatible(room, surgery):
     if surgery["laparoscopic"] and not room["laparoscopic"]:
         return False
     return True
+
 
 def constraint_violations(solution, room_data, surgery_data):
     violations = 0
@@ -118,6 +116,7 @@ def constraint_violations(solution, room_data, surgery_data):
 
     return violations
 
+
 def fitness_function(solution, room_data, surgery_data):
     idle_time = 0
     cleanup_time = 0
@@ -138,6 +137,7 @@ def fitness_function(solution, room_data, surgery_data):
             start_time = last_end_time
             end_time = start_time + surgery["duration"]
 
+            # Bonus logic
             if surgery["curata"]:
                 score_bonus += 30
             if sala_status[room_idx] == "curata" and surgery["curata"]:
@@ -156,11 +156,14 @@ def fitness_function(solution, room_data, surgery_data):
     penalty = constraint_violations(solution, room_data, surgery_data)
     return idle_time + cleanup_time + penalty * 1000 - score_bonus
 
+
 def schedule_surgeries(selected_date):
     room_data, surgery_data = fetch_data(selected_date)
 
-    # Alegem aleatoriu o sală de gardă din cele 1-3 (index 0-2)
-    guard_room_idx = random.choice([0, 1, 2])
+    if not surgery_data:
+        return []
+
+    guard_room_idx = random.choice([0, 1, 2])  # alegem una din primele 3 săli
 
     bounds = FloatVar(
         lb=[0] * len(surgery_data),
