@@ -18,6 +18,8 @@ from calendarapp.models import Event
 from datetime import datetime, time
 
 
+
+
 def get_date(req_day):
     if req_day:
         year, month = (int(x) for x in req_day.split("-"))
@@ -150,7 +152,7 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                     "id": event.id,
                     "title": event.nume_pacient, 
                     "nume_pacient": event.nume_pacient,
-                    "tip_operatie": event.tip_operatie,
+                    "tip_operatie": event.tip_operatie.Nume,
                     "start": event.data_interventie.strftime("%Y-%m-%dT%H:%M:%S"),
                     "constrangeri_speciale": event.constrangeri_speciale,
                     "observatii": event.observatii,
@@ -229,7 +231,6 @@ def run_schedule(request):
     
 def schedule_page(request):
     return render(request, "calendarapp/schedule.html")
-
 @csrf_exempt
 def confirm_schedule(request):
     if request.method == "POST":
@@ -263,3 +264,4 @@ def confirm_schedule(request):
         return JsonResponse({"message": "Planificarea a fost confirmată și salvată cu succes!"})
     else:
         return JsonResponse({"error": "Invalid request"}, status=400)
+    

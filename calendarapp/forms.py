@@ -12,12 +12,7 @@ class EventForm(ModelForm):
             "nume_pacient": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "Introduceți numele pacientului"}
             ),
-            "tip_operatie": forms.Select(
-                choices=[
-                    ("curata", "Curată"),
-                    ("murdara", "Murdară"),
-                    ("laparoscopica", "Laparoscopică")
-                ],
+             "tip_operatie": forms.Select(  # ❗️Aici NU mai pui choices manual
                 attrs={"class": "form-control"}
             ),
             "constrangeri_speciale": forms.Textarea(
