@@ -42,6 +42,8 @@ urlpatterns = [
     path("orar/", other_views.schedule_page, name="orar"),
     path("run-schedule/", other_views.run_schedule, name="run_schedule"),
     path("confirm-schedule/", other_views.confirm_schedule, name="confirm_schedule"),
+    path("orar-confirmat/", other_views.confirmed_schedule_view, name="confirmed-schedule"),
+
 
 
 ]
