@@ -255,6 +255,8 @@ def confirm_schedule(request):
                     event.ora_inceput = ora_inceput
                     event.ora_sfarsit = ora_sfarsit
                     event.durata = durata
+                    event.sala_alocata = room["room"]
+
                     event.status = "aprobat"
                     event.save()
 
