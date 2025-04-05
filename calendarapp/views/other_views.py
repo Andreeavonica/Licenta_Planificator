@@ -270,29 +270,3 @@ def confirm_schedule(request):
 from django.shortcuts import render
 from calendarapp.models import Event
 from datetime import datetime
-
-def confirmed_schedule_view(request):
-    selected_date = request.GET.get("date")
-    events = Event.objects.filter(
-        data_interventie__date=selected_date,
-        status="aprobat"
-    )
-
-    timetable = {}
-    for event in events:
-        room = event.sala_alocata or "Nicio informatie"
-        if room not in timetable:
-            timetable[room] = []
-        timetable[room].append({
-            "nume": event.nume_pacient,
-            "start": event.ora_inceput.strftime("%H:%M"),
-        })
-
-    # ✅ Aici adaugi codul pentru generarea sloturilor
-    slot_times = [f"{hour:02d}:{minute:02d}" for hour in range(8, 17) for minute in (0, 30)]
-
-    context = {
-        "timetable": timetable,
-        "slot_times": slot_times,  # ✅ trimitem sloturile în template
-    }
-    return render(request, "calendarapp/final_schedule.html", context)

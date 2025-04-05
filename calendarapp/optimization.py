@@ -198,7 +198,8 @@ def schedule_surgeries(selected_date):
                 "surgery": surgery["name"],
                 "start_time": f"{start_time // 60}:{start_time % 60:02d}",
                 "end_time": f"{end_time // 60}:{end_time % 60:02d}",
-                "surgeon": surgery["surgeon"]
+                "surgeon": surgery["surgeon"],
+                "sala": room_data[room_idx]["id"] 
             })
             last_end_time = end_time + calculate_cleaning_time(surgery)
         timetable.append(room_timetable)
