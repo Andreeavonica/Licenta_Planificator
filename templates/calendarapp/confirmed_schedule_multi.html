@@ -1,0 +1,93 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Orar Confirmat Multiplu{% endblock title %}
+ 
+{% block breadcrumb %}
+  <div>
+    <h1><i class="fa fa-calendar"></i> Orar Confirmat pe Mai Multe Zile</h1>
+    <p>Intervenții chirurgicale confirmate pentru intervalul selectat</p>
+  </div>
+  <ul class="app-breadcrumb breadcrumb">
+    <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+    <li class="breadcrumb-item"><a href="#">Orar</a></li>
+  </ul>
+{% endblock breadcrumb %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="tile">
+      <!-- Formular pentru selectarea intervalului, vizibil în special managerilor -->
+      {% if request.user.role == "manager" %}
+      <div class="text-center mb-3">
+          <input type="date" id="startDate" class="form-control w-auto d-inline" value="{{ start_date }}">
+          <input type="date" id="endDate" class="form-control w-auto d-inline" value="{{ end_date }}">
+          <button class="btn btn-primary ms-2"
+                onclick="window.location.href='{% url 'calendarapp:confirmed_schedule_multi' %}' + '?start_date=' + document.getElementById('startDate').value + '&end_date=' + document.getElementById('endDate').value;">
+                Afișează
+           </button>
+
+
+
+              </div>
+      {% endif %}
+      
+      <!-- Iterăm prin fiecare zi din intervalul selectat -->
+      {% for day, rooms in schedule_by_date.items %}
+        <h3>Data: {{ day }}</h3>
+        <div class="table-responsive">
+          <table class="table table-bordered text-center">
+            <thead class="table-dark">
+              <tr>
+                <th>Sală</th>
+                <th>08:00</th>
+                <th>08:30</th>
+                <th>09:00</th>
+                <th>09:30</th>
+                <th>10:00</th>
+                <th>10:30</th>
+                <th>11:00</th>
+                <th>11:30</th>
+                <th>12:00</th>
+                <th>12:30</th>
+                <th>13:00</th>
+                <th>13:30</th>
+                <th>14:00</th>
+                <th>14:30</th>
+                <th>15:00</th>
+                <th>15:30</th>
+                <th>16:00</th>
+                <th>16:30</th>
+                <th>17:00</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sala, events in rooms.items %}
+                <tr>
+                  <td><b>Sală {{ sala }}</b></td>
+                  {% comment %} 
+                    Aici poți implementa logica pentru afișarea corectă a evenimentelor pe sloturi orare.
+                    Poți folosi o funcție custom sau JavaScript similar cu ceea ce ai folosit în schedule.html.
+                  {% endcomment %}
+                  {% for i in 1|to:20 %}
+                    <td>
+                      {% for event in events %}
+                        {# Exemplu simplu: afișăm informațiile despre eveniment #}
+                        {{ event.nume_pacient }}<br>
+                        {{ event.ora_inceput }} - {{ event.ora_sfarsit }}
+                      {% endfor %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% empty %}
+        <p>Nu există evenimente confirmate în acest interval.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

@@ -267,6 +267,14 @@ def confirm_schedule(request):
     else:
         return JsonResponse({"error": "Invalid request"}, status=400)
     
-from django.shortcuts import render
-from calendarapp.models import Event
-from datetime import datetime
+def schedule_page(request):
+    time_labels = [
+        "08", "08.5", "09", "09.5", "10", "10.5",
+        "11", "11.5", "12", "12.5", "13", "13.5",
+        "14", "14.5", "15", "15.5", "16", "16.5", "17"
+    ]
+    return render(request, "calendarapp/schedule.html", {
+        "time_labels": time_labels,
+        "today": date.today(), 
+
+    })

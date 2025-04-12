@@ -4,129 +4,176 @@
 {% block title %}Planificare - Orar{% endblock title %}
 
 {% block extracss %}
-  <link href="{% static 'calender/main.css' %}" rel="stylesheet" />
+<style>
+.timeline-container {
+  width: 100%;
+}
+
+.time-header {
+  display: flex;
+  margin-left: 100px; /* Fix: aliniere exactă cu blocurile */
+  border-bottom: 2px solid #333;
+  font-weight: bold;
+}
+
+.time-label {
+  width: 100px;
+  text-align: left;
+}
+
+.time-cell {
+  width: 60px; /* fix pentru fiecare interval de 30min */
+  text-align: center;
+  font-size: 12px;
+}
+
+.timeline-row {
+  display: flex;
+  position: relative;
+  height: 50px;
+  border-bottom: 1px solid #ccc;
+}
+
+.timeline-label {
+  width: 100px;
+  font-weight: bold;
+  padding-top: 15px;
+  text-align: left;
+  position: relative;
+  z-index: 2;
+  background: #fff;
+}
+
+.timeline-line {
+  display: block;
+  position: relative;
+  flex: 1;
+}
+
+.surgery {
+  position: absolute;
+  background-color: #d0ebff;
+  border-left: 4px solid #339af0;
+  border-radius: 6px;
+  padding: 3px;
+  font-size: 11px;
+  line-height: 14px;
+  color: #003366;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 40px;
+  top: 5px;
+}
+
+.surgery:hover {
+  background-color: #74c0fc;
+  color: white;
+}
+
+</style>
 {% endblock extracss %}
 
 {% block breadcrumb %}
-  <div>
-    <h1><i class="fa fa-calendar"></i> Planificare Intervenții</h1>
-    <p>Orar automat pentru intervenții chirurgicale</p>
-  </div>
-  <ul class="app-breadcrumb breadcrumb">
-    <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
-    <li class="breadcrumb-item"><a href="#">Orar</a></li>
-  </ul>
+<div>
+  <h1><i class="fa fa-calendar"></i> Planificare Intervenții</h1>
+  <p>Orar automat pentru intervenții chirurgicale</p>
+</div>
+<ul class="app-breadcrumb breadcrumb">
+  <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+  <li class="breadcrumb-item"><a href="#">Orar</a></li>
+</ul>
 {% endblock breadcrumb %}
 
 {% block content %}
-<div class="row">
-  <div class="col-md-12">
-    <div class="tile">
-
-      {% if request.user.is_authenticated and request.user.role == "manager" %}
-
-      <div class="text-center mb-3">
-          <input type="date" id="selectedDate" class="form-control w-auto d-inline">
-          <button class="btn btn-primary ms-2" onclick="runSchedule()">Planifică</button>
-      </div>
-      <div class="text-center mt-3">
-          <button class="btn btn-success" id="confirmButton" onclick="confirmSchedule()">Confirmă Planificarea</button>
-      </div>
-      {% endif %}
-
-      <div id="output" class="table-responsive">
-        <!-- Orarul generat va apărea aici -->
-      </div>
-
+<div class="tile">
+  {% if request.user.is_authenticated and request.user.role == "manager" %}
+    <div class="text-center mb-3">
+        <input type="date" id="selectedDate" class="form-control w-auto d-inline">
+        <button class="btn btn-primary ms-2" onclick="runSchedule()">Planifică</button>
     </div>
+    <div class="text-center mt-3">
+        <button class="btn btn-success" id="confirmButton" onclick="confirmSchedule()">Confirmă Planificarea</button>
+    </div>
+  {% endif %}
+
+  <div class="timeline-container">
+
+    <div id="timeline-body"></div>
   </div>
 </div>
 {% endblock content %}
 
 {% block extrascripts %}
-
 <script>
+let lastScheduleData = null;
+
 function runSchedule() {
     const selectedDate = document.getElementById("selectedDate").value;
     if (!selectedDate) {
-        alert("Vă rugăm să selectați o dată validă!");
+        alert("Vă rugăm să selectați o dată!");
         return;
     }
 
     fetch("{% url 'calendarapp:run_schedule' %}?date=" + selectedDate)
         .then(response => response.json())
         .then(data => {
-            lastScheduleData = data;  // salvăm pentru confirmare
-            const outputElement = document.getElementById('output');
-            outputElement.innerHTML = ""; 
-
             if (data.error) {
-                outputElement.innerHTML = 
+                document.getElementById("timeline-body").innerHTML =
                     `<div class="alert alert-danger"><strong>Eroare:</strong> ${data.error}</div>`;
                 return;
             }
-
-            // Construim tabelul pentru afisarea interventiilor
-            let html = `<div class="table-responsive">
-                            <table class="table table-bordered text-center">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Sală</th>
-                                        <th>08:00</th>
-                                        <th>08:30</th>
-                                        <th>09:00</th>
-                                        <th>09:30</th>
-                                        <th>10:00</th>
-                                        <th>10:30</th>
-                                        <th>11:00</th>
-                                        <th>11:30</th>
-                                        <th>12:00</th>
-                                        <th>12:30</th>
-                                        <th>13:00</th>
-                                        <th>13:30</th>
-                                        <th>14:00</th>
-                                        <th>14:30</th>
-                                        <th>15:00</th>
-                                        <th>15:30</th>
-                                        <th>16:00</th>
-                                        <th>16:30</th>
-                                        <th>17:00</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
-
-            // Mapăm sălile și alocăm operațiile la orele potrivite
-            data.room_allocations.forEach(room => {
-                let rowHtml = `<tr><td><b>Sală ${room.room}</b></td>`;
-                let timeSlots = Array(19).fill(""); // 08:00 - 17:00 (30 min per slot)
-
-                room.schedule.forEach(ev => {
-                    const startIdx = parseTimeToIndex(ev.start_time);
-                    const endIdx = parseTimeToIndex(ev.end_time);
-
-                    for (let i = startIdx; i < endIdx; i++) {
-                        timeSlots[i] = `<div class="surgery">${ev.surgery}</div>`;
-                    }
-                });
-
-                // Populăm tabelul cu operațiile mapate
-                timeSlots.forEach(slot => {
-                    rowHtml += `<td>${slot}</td>`;
-                });
-
-                rowHtml += `</tr>`;
-                html += rowHtml;
-            });
-
-            html += `</tbody></table></div>`;
-            outputElement.innerHTML = html;
+            lastScheduleData = data;
+            drawTimeline(data);
         })
         .catch(error => {
-            document.getElementById('output').innerHTML = 
-                `<div class="alert alert-danger">Eroare la request: ${error}</div>`;
+            document.getElementById("timeline-body").innerHTML =
+                `<div class="alert alert-danger">Eroare: ${error}</div>`;
         });
 }
 
+function drawTimeline(data) {
+    const bodyElement = document.getElementById("timeline-body");
+    bodyElement.innerHTML = "";
+
+    data.room_allocations.forEach(room => {
+        let row = document.createElement("div");
+        row.classList.add("timeline-row");
+
+        let label = document.createElement("div");
+        label.classList.add("timeline-label");
+        label.innerText = `Sală ${room.room}`;
+        row.appendChild(label);
+
+        let line = document.createElement("div");
+        line.classList.add("timeline-line");
+
+        room.schedule.forEach(ev => {
+            const surgeryDiv = document.createElement("div");
+            surgeryDiv.classList.add("surgery");
+
+            const [sh, sm] = ev.start_time.split(':').map(Number);
+            const [eh, em] = ev.end_time.split(':').map(Number);
+
+            const startMinutes = (sh * 60 + sm) - 480;
+            const endMinutes = (eh * 60 + em) - 480;
+            const duration = endMinutes - startMinutes;
+
+            const left = (startMinutes / 540) * 100;
+            const width = (duration / 540) * 100;
+
+            surgeryDiv.style.left = `${left}%`;
+            surgeryDiv.style.width = `${width}%`;
+            surgeryDiv.innerHTML = `${ev.surgery}<br>${ev.start_time} - ${ev.end_time}<br>Dr. ${ev.surgeon}`;
+
+            line.appendChild(surgeryDiv);
+        });
+
+        row.appendChild(line);
+        bodyElement.appendChild(row);
+    });
+}
 
 function confirmSchedule() {
     if (!lastScheduleData) {
@@ -150,11 +197,6 @@ function confirmSchedule() {
     .catch(error => {
         alert("Eroare la confirmare: " + error);
     });
-}
-// Funcție pentru a converti ora într-un index pentru tabel   
-function parseTimeToIndex(timeString) {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return (hours - 8) * 2 + Math.floor(minutes / 30); // Începe de la 08:00
 }
 </script>
 {% endblock extrascripts %}
