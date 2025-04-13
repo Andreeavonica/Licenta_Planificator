@@ -17,6 +17,11 @@ from django.views.decorators.csrf import csrf_exempt
 from calendarapp.models import Event
 from datetime import datetime, time
 
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+
 
 
 
@@ -278,3 +283,24 @@ def schedule_page(request):
         "today": date.today(), 
 
     })
+@csrf_exempt
+@csrf_exempt
+def move_surgery(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        surgery_id = data.get("id")
+        new_room = data.get("new_room")
+        new_start = data.get("new_start_time")  # optional
+
+        try:
+            surgery = Event.objects.get(pk=surgery_id)
+            surgery.sala_alocata = new_room
+            if new_start:
+                surgery.ora_inceput = new_start
+            surgery.save()
+            return JsonResponse({"message": "Operația a fost mutată."})
+        except Event.DoesNotExist:
+            return JsonResponse({"error": "Operația nu a fost găsită."}, status=404)
+
+    # 🟡 Evităm return None pentru alte metode
+    return JsonResponse({"error": "Method not allowed"}, status=405)

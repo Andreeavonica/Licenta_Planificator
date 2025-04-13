@@ -153,8 +153,11 @@ function drawTimeline(data) {
         line.classList.add("timeline-line");
 
         room.schedule.forEach(ev => {
-            const surgeryDiv = document.createElement("div");
-            surgeryDiv.classList.add("surgery");
+        const surgeryDiv = document.createElement("div");
+        surgeryDiv.classList.add("surgery");
+        surgeryDiv.setAttribute("draggable", "true");
+        surgeryDiv.setAttribute("data-id", ev.id);  // 👈 acest ID vine din backend
+
 
             const [sh, sm] = ev.start_time.split(':').map(Number);
             const [eh, em] = ev.end_time.split(':').map(Number);
@@ -182,6 +185,71 @@ function drawTimeline(data) {
         bodyElement.appendChild(row);
     });
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  // Drag START - setăm ID-ul elementului mutat
+  document.addEventListener("dragstart", e => {
+    if (e.target.classList.contains("surgery")) {
+      e.dataTransfer.setData("text/plain", e.target.dataset.id);
+    }
+  });
+
+  // Permite drop peste .timeline-line
+  document.addEventListener("dragover", e => {
+    if (e.target.classList.contains("timeline-line")) {
+      e.preventDefault();
+    }
+  });
+
+  // Drop logic
+  document.addEventListener("drop", e => {
+  if (e.target.classList.contains("timeline-line")) {
+    e.preventDefault();
+
+    const id = e.dataTransfer.getData("text/plain");
+    const newRoom = e.target.parentElement.querySelector(".timeline-label")
+                     .innerText.replace("Sală ", "").trim();
+
+    const draggedEl = document.querySelector(`.surgery[data-id='${id}']`);
+    if (!draggedEl) return;
+
+    e.target.appendChild(draggedEl); // vizual
+
+    // TRIMITE în backend
+    fetch("{% url 'calendarapp:move_surgery' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": '{{ csrf_token }}'
+      },
+      body: JSON.stringify({ id: id, new_room: newRoom })
+    })
+    .then(res => res.json())
+    .then(msg => {
+      console.log("✔️ " + msg.message);
+
+      // ✅ ACTUALIZARE lastScheduleData aici:
+      const roomIndex = lastScheduleData.room_allocations.findIndex(r =>
+        r.schedule.some(s => s.id == id)
+      );
+      if (roomIndex !== -1) {
+        const schedIndex = lastScheduleData.room_allocations[roomIndex].schedule.findIndex(s => s.id == id);
+        const moved = lastScheduleData.room_allocations[roomIndex].schedule.splice(schedIndex, 1)[0];
+
+        let targetRoom = lastScheduleData.room_allocations.find(r => r.room == newRoom);
+        if (!targetRoom) {
+          targetRoom = { room: newRoom, schedule: [] };
+          lastScheduleData.room_allocations.push(targetRoom);
+        }
+        targetRoom.schedule.push(moved);
+        moved.room = newRoom;
+      }
+    });
+  }
+});
+
+});
+
 
 function confirmSchedule() {
     if (!lastScheduleData) {
