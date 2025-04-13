@@ -30,19 +30,21 @@
 .timeline-row {
   display: flex;
   position: relative;
-  height: 50px;
+  height: auto; /* auto crește automat în funcție de conținut */
+  min-height: 70px; /* suficient pentru 3-4 linii de text */
   border-bottom: 1px solid #ccc;
 }
 
 .timeline-label {
   width: 100px;
   font-weight: bold;
-  padding-top: 15px;
+  padding-top: 20px;
   text-align: left;
   position: relative;
   z-index: 2;
   background: #fff;
 }
+
 
 .timeline-line {
   display: block;
@@ -52,19 +54,17 @@
 
 .surgery {
   position: absolute;
-  background-color: #d0ebff;
+  background-color: #e7f3ff;
   border-left: 4px solid #339af0;
   border-radius: 6px;
-  padding: 3px;
-  font-size: 11px;
-  line-height: 14px;
-  color: #003366;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  height: 40px;
-  top: 5px;
+  padding: 6px 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: #002b55;
+  font-family: "Segoe UI", sans-serif;
+  height: auto;
+  top: 10px;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
 }
 
 .surgery:hover {
@@ -165,7 +165,12 @@ function drawTimeline(data) {
 
             surgeryDiv.style.left = `${left}%`;
             surgeryDiv.style.width = `${width}%`;
-            surgeryDiv.innerHTML = `${ev.surgery}<br>${ev.start_time} - ${ev.end_time}<br>Dr. ${ev.surgeon}`;
+            surgeryDiv.innerHTML = `
+              <div>${ev.start_time} - ${ev.end_time}</div>
+            <!-- <div style="font-weight: bold;">${ev.surgery}</div> -->
+              <div>Dr. ${ev.surgeon}</div>
+              <div style="font-style: italic;">${ev.type}</div>
+            `;
 
             line.appendChild(surgeryDiv);
         });
