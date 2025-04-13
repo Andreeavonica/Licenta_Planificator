@@ -30,28 +30,26 @@
 .timeline-row {
   display: flex;
   position: relative;
-  height: auto; /* auto crește automat în funcție de conținut */
-  min-height: 70px; /* suficient pentru 3-4 linii de text */
+  height: 80px;
+  padding-top: 10px;
+  box-sizing: border-box;
   border-bottom: 1px solid #ccc;
 }
 
 .timeline-label {
   width: 100px;
   font-weight: bold;
-  padding-top: 20px;
+  padding-top: 25px;
   text-align: left;
-  position: relative;
   z-index: 2;
   background: #fff;
 }
-
 
 .timeline-line {
   display: block;
   position: relative;
   flex: 1;
 }
-
 .surgery {
   position: absolute;
   background-color: #e7f3ff;
@@ -59,12 +57,17 @@
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 13px;
-  line-height: 18px;
+  line-height: 16px;
   color: #002b55;
   font-family: "Segoe UI", sans-serif;
-  height: auto;
-  top: 10px;
-  box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+  height: 60px;
+  box-sizing: border-box;
+  top: 50%;
+  transform: translateY(-50%);
+  overflow: hidden;
+  white-space: normal;
+  text-overflow: ellipsis;
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .surgery:hover {
