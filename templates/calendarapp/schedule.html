@@ -5,81 +5,76 @@
 
 {% block extracss %}
 <style>
-.timeline-container {
-  width: 100%;
-  overflow-x: auto;
+/* —————— CONTAINER SCROLLABIL —————— */
+.timeline-container{
+  width:100%;
+  overflow-x:auto;
 }
 
-.time-header {
-  display: flex;
-  margin-left: 100px;
-  border-bottom: 2px solid #333;
-  font-weight: bold;
-  position: sticky;
-  top: 0;
-  background: white;
-  height: 30px;
+/* —————— HEADER RIGLĂ ORARĂ —————— */
+.time-header{
+  position:relative;                 /* permite tick-uri absolute */
+  margin-left:100px;                 /* lăsăm spațiu pentru “Sală X” */
+  width:calc(100% - 100px);          /* aliniat cu .timeline-line */
+  height:25px;
+  border-bottom:2px solid #333;
+  background:#fff;
+  font-weight:bold;
 }
 
-.time-label {
-  width: 100px;
-  text-align: right;
-  padding-right: 10px;
-  font-size: 14px;
+/* Un “tick” = text + liniuță verticală */
+.time-tick{
+  position:absolute;
+  top:0;
+  transform:translateX(-50%);        /* centrăm textul pe linia verticală */
+  font-size:12px;
+  white-space:nowrap;
+  pointer-events:none;               /* să nu interfereze cu drag-and-drop */
+}
+.time-tick::after{                   /* liniuța propriu-zisă */
+  content:"";
+  position:absolute;
+  left:50%;
+  top:100%;
+  width:1px;
+  height:6px;
+  background:#333;
+  transform:translateX(-50%);
 }
 
-.time-cell {
-  width: calc(100% / 19);
-  text-align: center;
-  font-size: 12px;
-  border-left: 1px solid #ddd;
+/* —————— ETICHETĂ SALĂ + LINIE TIMELINE —————— */
+.timeline-row{
+  display:flex;
+  height:70px;
+  border-bottom:2px solid #ccc;
+  align-items:center;
+}
+.timeline-label{
+  width:100px;
+  font-size:14px;
+  font-weight:bold;
+  text-align:right;
+  padding-right:5px;
+}
+.timeline-line{
+  position:relative;
+  flex:1;
+  height:100%;
 }
 
-.timeline-row {
-  display: flex;
-  position: relative;
-  height: 70px;
-  border-bottom: 2px solid #ccc;
-  align-items: center;
+/* —————— BARE INTERVENȚII —————— */
+.surgery{
+  position:absolute;
+  top:0;
+  height:100%;
+  border-radius:0;
+  font-size:12px;
+  font-weight:bold;
+  padding:6px;
+  overflow:hidden;
+  color:#fff;
 }
-
-.timeline-label {
-  width: 100px;
-  font-weight: bold;
-  padding-left: 5px;
-  font-size: 14px;
-  text-align: right;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.timeline-line {
-  position: relative;
-  flex: 1;
-  height: 100%;
-}
-
-.surgery {
-  position: absolute;
-  height: 100%;
-  top: 0;
-  border-radius: 0;
-  font-size: 12px;
-  font-weight: bold;
-  padding: 6px;
-  overflow: hidden;
-  white-space: normal;
-  text-overflow: ellipsis;
-  box-shadow: none;
-  color: white;
-}
-
-.surgery:hover {
-  transform: scale(1.02);
-  transition: 0.2s;
-}
+.surgery:hover{ transform:scale(1.02); transition:.2s; }
 </style>
 {% endblock extracss %}
 
@@ -98,11 +93,11 @@
 <div class="tile">
   {% if request.user.is_authenticated and request.user.role == "manager" %}
     <div class="text-center mb-3">
-        <input type="date" id="selectedDate" class="form-control w-auto d-inline">
-        <button class="btn btn-primary ms-2" onclick="runSchedule()">Planifică</button>
+      <input type="date" id="selectedDate" class="form-control w-auto d-inline">
+      <button class="btn btn-primary ms-2" onclick="runSchedule()">Planifică</button>
     </div>
     <div class="text-center mt-3">
-        <button class="btn btn-success" id="confirmButton" onclick="confirmSchedule()">Confirmă Planificarea</button>
+      <button class="btn btn-success" id="confirmButton" onclick="confirmSchedule()">Confirmă Planificarea</button>
     </div>
   {% endif %}
 
@@ -116,183 +111,152 @@
 <script>
 let lastScheduleData = null;
 
-function randomColor(id) {
-  const colors = ['#4dabf7', '#20c997', '#fcc419', '#f783ac', '#845ef7', '#38d9a9'];
-  return colors[id % colors.length];
+/* ——— paletă culori simplă ——— */
+function randomColor(id){
+  const colors=['#4dabf7','#20c997','#fcc419','#f783ac','#845ef7','#38d9a9'];
+  return colors[id%colors.length];
 }
 
-function runSchedule() {
-    const selectedDate = document.getElementById("selectedDate").value;
-    if (!selectedDate) {
-        alert("Vă rugăm să selectați o dată!");
+/* ——— rulează optimizarea pe server ——— */
+function runSchedule(){
+  const selectedDate=document.getElementById("selectedDate").value;
+  if(!selectedDate){ alert("Vă rugăm să selectați o dată!"); return; }
+  fetch("{% url 'calendarapp:run_schedule' %}?date="+selectedDate)
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.error){
+        document.getElementById("timeline-body").innerHTML=
+          `<div class="alert alert-danger"><strong>Eroare:</strong> ${data.error}</div>`;
         return;
-    }
-
-    fetch("{% url 'calendarapp:run_schedule' %}?date=" + selectedDate)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                document.getElementById("timeline-body").innerHTML =
-                    `<div class="alert alert-danger"><strong>Eroare:</strong> ${data.error}</div>`;
-                return;
-            }
-            lastScheduleData = data;
-            drawTimeline(data);
-        })
-        .catch(error => {
-            document.getElementById("timeline-body").innerHTML =
-                `<div class="alert alert-danger">Eroare: ${error}</div>`;
-        });
-}
-
-function drawTimeline(data) {
-    const bodyElement = document.getElementById("timeline-body");
-    bodyElement.innerHTML = "";
-
-    const timeHeader = document.createElement("div");
-    timeHeader.classList.add("time-header");
-    const emptyCell = document.createElement("div");
-    emptyCell.classList.add("time-label");
-    timeHeader.appendChild(emptyCell);
-
-    const times = [];
-    for (let h = 8; h <= 17; h++) {
-        if (h < 17) times.push(`${h.toString().padStart(2, '0')}:00`);
-        if (h < 17) times.push(`${h.toString().padStart(2, '0')}:30`);
-    }
-    
-    times.forEach(time => {
-      const cell = document.createElement("div");
-      cell.classList.add("time-cell");
-      cell.innerText = time;
-      timeHeader.appendChild(cell);
-    });
-    bodyElement.appendChild(timeHeader);
-
-    data.room_allocations.forEach(room => {
-        let row = document.createElement("div");
-        row.classList.add("timeline-row");
-
-        let label = document.createElement("div");
-        label.classList.add("timeline-label");
-        label.innerText = `Sală ${room.room}`;
-        row.appendChild(label);
-
-        let line = document.createElement("div");
-        line.classList.add("timeline-line");
-
-        room.schedule.forEach(ev => {
-            const surgeryDiv = document.createElement("div");
-            surgeryDiv.classList.add("surgery");
-            surgeryDiv.setAttribute("draggable", "true");
-            surgeryDiv.setAttribute("data-id", ev.id);
-
-            const [sh, sm] = ev.start_time.split(':').map(Number);
-            const [eh, em] = ev.end_time.split(':').map(Number);
-
-            const startMinutes = Math.max((sh * 60 + sm) - 480, 0);
-            const endMinutes = (eh * 60 + em) - 480;
-            const duration = endMinutes - startMinutes;
-
-            const left = ((sh * 60 + sm) - 480) / 540 * 100;
-            const width = ((eh * 60 + em) - (sh * 60 + sm)) / 540 * 100;
-
-            surgeryDiv.style.left = `${left}%`;
-            surgeryDiv.style.width = `${width}%`;
-            surgeryDiv.style.backgroundColor = randomColor(ev.id);
-
-            surgeryDiv.innerHTML = `
-              <div style='font-size: 11px;'>${ev.start_time} - ${ev.end_time}</div>
-              <div style='font-weight: bold;'>${ev.type}</div>
-              <div>Dr. ${ev.surgeon}</div>
-            `;
-
-            line.appendChild(surgeryDiv);
-        });
-
-        row.appendChild(line);
-        bodyElement.appendChild(row);
+      }
+      lastScheduleData=data;
+      drawTimeline(data);
+    })
+    .catch(err=>{
+      document.getElementById("timeline-body").innerHTML=
+        `<div class="alert alert-danger">Eroare: ${err}</div>`;
     });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  document.addEventListener("dragstart", e => {
-    if (e.target.classList.contains("surgery")) {
-      e.dataTransfer.setData("text/plain", e.target.dataset.id);
+/* ——— desenează rigla orară (19 tick-uri) ——— */
+function buildTimeHeader(){
+  const header=document.createElement("div");
+  header.classList.add("time-header");
+
+  const INTERVALS=18;              // 18 × 30 min între 08:00-16:30
+  for(let i=0;i<=INTERVALS;i++){   // 0..18 → 19 marcaje
+    const tick=document.createElement("span");
+    tick.className="time-tick";
+    /* ora + minut */
+    const minutes=480+i*30;        // 480 min = 8*60
+    const hh=Math.floor(minutes/60).toString().padStart(2,"0");
+    const mm=(minutes%60===0)?"00":"30";
+    tick.textContent=`${hh}:${mm}`;
+    /* poziția procentuală */
+    tick.style.left=`${i/INTERVALS*100}%`;
+    header.appendChild(tick);
+  }
+  return header;
+}
+
+/* ——— desenează tot timeline-ul ——— */
+function drawTimeline(data){
+  const body=document.getElementById("timeline-body");
+  body.innerHTML="";
+
+  /* header orar */
+  body.appendChild(buildTimeHeader());
+
+  /* fiecare sală → un rând */
+  data.room_allocations.forEach(room=>{
+    const row=document.createElement("div");
+    row.className="timeline-row";
+
+    const label=document.createElement("div");
+    label.className="timeline-label";
+    label.textContent=`Sală ${room.room}`;
+    row.appendChild(label);
+
+    const line=document.createElement("div");
+    line.className="timeline-line";
+
+    room.schedule.forEach(ev=>{
+      const div=document.createElement("div");
+      div.className="surgery";
+      div.setAttribute("draggable","true");
+      div.dataset.id=ev.id;
+
+      /* minutul de start & dimensiuni în % din fereastra 08-17 (540 min) */
+      const [sh,sm]=ev.start_time.split(":").map(Number);
+      const [eh,em]=ev.end_time.split(":").map(Number);
+      const start=((sh*60+sm)-480)/540*100;
+      const width=((eh*60+em)-(sh*60+sm))/540*100;
+
+      div.style.left=`${start}%`;
+      div.style.width=`${width}%`;
+      div.style.backgroundColor=randomColor(ev.id);
+      div.innerHTML=`
+        <div style="font-size:11px;">${ev.start_time}-${ev.end_time}</div>
+        <div style="font-weight:bold;">${ev.type}</div>
+        <div>Dr.&nbsp;${ev.surgeon}</div>
+      `;
+      line.appendChild(div);
+    });
+
+    row.appendChild(line);
+    body.appendChild(row);
+  });
+}
+
+/* ——— drag & drop mutare sală ——— */
+document.addEventListener("DOMContentLoaded",()=>{
+  document.addEventListener("dragstart",e=>{
+    if(e.target.classList.contains("surgery")){
+      e.dataTransfer.setData("text/plain",e.target.dataset.id);
     }
   });
-
-  document.addEventListener("dragover", e => {
-    if (e.target.classList.contains("timeline-line")) {
-      e.preventDefault();
-    }
+  document.addEventListener("dragover",e=>{
+    if(e.target.classList.contains("timeline-line")) e.preventDefault();
   });
-
-  document.addEventListener("drop", e => {
-    if (e.target.classList.contains("timeline-line")) {
+  document.addEventListener("drop",e=>{
+    if(e.target.classList.contains("timeline-line")){
       e.preventDefault();
-      const id = e.dataTransfer.getData("text/plain");
-      const newRoom = e.target.parentElement.querySelector(".timeline-label")
-                     .innerText.replace("Sală ", "").trim();
+      const id=e.dataTransfer.getData("text/plain");
+      const newRoom=e.target.parentElement.querySelector(".timeline-label")
+                    .textContent.replace("Sală","").trim();
+      const dragged=document.querySelector(`.surgery[data-id='${id}']`);
+      if(!dragged) return;
+      e.target.appendChild(dragged);
 
-      const draggedEl = document.querySelector(`.surgery[data-id='${id}']`);
-      if (!draggedEl) return;
-
-      e.target.appendChild(draggedEl);
-
-      fetch("{% url 'calendarapp:move_surgery' %}", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": '{{ csrf_token }}'
+      fetch("{% url 'calendarapp:move_surgery' %}",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "X-CSRFToken":"{{ csrf_token }}"
         },
-        body: JSON.stringify({ id: id, new_room: newRoom })
-      })
-      .then(res => res.json())
-      .then(msg => {
-        console.log("✔️ " + msg.message);
-        const roomIndex = lastScheduleData.room_allocations.findIndex(r =>
-          r.schedule.some(s => s.id == id)
-        );
-        if (roomIndex !== -1) {
-          const schedIndex = lastScheduleData.room_allocations[roomIndex].schedule.findIndex(s => s.id == id);
-          const moved = lastScheduleData.room_allocations[roomIndex].schedule.splice(schedIndex, 1)[0];
-
-          let targetRoom = lastScheduleData.room_allocations.find(r => r.room == newRoom);
-          if (!targetRoom) {
-            targetRoom = { room: newRoom, schedule: [] };
-            lastScheduleData.room_allocations.push(targetRoom);
-          }
-          targetRoom.schedule.push(moved);
-          moved.room = newRoom;
-        }
-      });
+        body:JSON.stringify({id,new_room:newRoom})
+      }).then(r=>r.json()).then(msg=>console.log("✔️ "+msg.message));
     }
   });
 });
 
-function confirmSchedule() {
-    if (!lastScheduleData) {
-        alert("Trebuie să generezi o planificare mai întâi!");
-        return;
-    }
-
-    fetch("{% url 'calendarapp:confirm_schedule' %}", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": '{{ csrf_token }}'
-        },
-        body: JSON.stringify(lastScheduleData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        alert(data.message || "Planificare confirmată.");
-        window.location.reload();
-    })
-    .catch(error => {
-        alert("Eroare la confirmare: " + error);
-    });
+/* ——— confirmă planificarea ——— */
+function confirmSchedule(){
+  if(!lastScheduleData){ alert("Trebuie să generezi o planificare mai întâi!"); return; }
+  fetch("{% url 'calendarapp:confirm_schedule' %}",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "X-CSRFToken":"{{ csrf_token }}"
+    },
+    body:JSON.stringify(lastScheduleData)
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    alert(data.message||"Planificare confirmată.");
+    window.location.reload();
+  })
+  .catch(err=>alert("Eroare la confirmare: "+err));
 }
 </script>
 {% endblock extrascripts %}
