@@ -33,7 +33,7 @@
                                                 <a href="#" class="social-icon google d-flex align-items-center justify-content-center"><span class="fa fa-google"></span></a>
                                                 <a href="#" class="social-icon facebook d-flex align-items-center justify-content-center"><span class="fa fa-facebook"></span></a>
                                                 <a href="#" class="social-icon twitter d-flex align-items-center justify-content-center"><span class="fa fa-twitter"></span></a>
-                                            </p>
+                                            </p> 
                                             <p class="or">
                                                 <span>or</span>
                                             </p>
@@ -41,6 +41,21 @@
                                         <form action="#" method="post" class="signup-form">
                                             {% csrf_token %}
                                             <div class="row">
+                                                <div class="col-md-12">
+                                                    <div class="form-group">
+                                                        <label class="label" for="first_name">Prenume</label>
+                                                        {{ form.first_name }}
+                                                        <span class="text-danger">{{ form.errors.first_name }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-12">
+                                                    <div class="form-group">
+                                                        <label class="label" for="last_name">Nume</label>
+                                                        {{ form.last_name }}
+                                                        <span class="text-danger">{{ form.errors.last_name }}</span>
+                                                    </div>
+                                                </div>
+                                        
                                                 <div class="col-md-12">
                                                     <div class="form-group">
                                                         <label class="label" for="email">Email Address</label>

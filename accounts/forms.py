@@ -18,7 +18,19 @@ class SignInForm(forms.Form):
 
 class SignUpForm(UserCreationForm):
     """ Form for user registration """
-    
+
+    first_name = forms.CharField(
+        label="Prenume",
+        max_length=150,
+        widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+
+    last_name = forms.CharField(
+        label="Nume",
+        max_length=150,
+        widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+
     role = forms.ChoiceField(
         choices=User.ROLE_CHOICES,
         widget=forms.Select(attrs={"class": "form-control"})
@@ -36,7 +48,7 @@ class SignUpForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ["email", "role", "password1", "password2"]
+        fields = ["first_name", "last_name", "email", "role", "password1", "password2"]
         widgets = {
             "email": forms.EmailInput(attrs={"class": "form-control"})
         }

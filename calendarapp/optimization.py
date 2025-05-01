@@ -26,7 +26,7 @@ DIRTY_CLEAN_GAP = 30              # diferența totală curat ↔ murdar (min)
 CLEANING_TIME_CURATA = 10         # timp curățare operație curată
 CLEANING_TIME_MURDARA = 30        # timp curățare operație murdară
 UNSCHEDULED_PENALTY = 10_000      # penalizare „hard”
-RESERVED_EMERGENCY_ROOMS = 3      # săli rezervate pentru urgențe
+RESERVED_EMERGENCY_ROOMS = 0      # săli rezervate pentru urgențe
 UNUSED_ROOM_PENALTY = 50          # penalizare pentru săli neutilizate
 EARLY_LONG_SURGERY_BONUS = -20    # bonus pentru programarea devreme a operațiilor lungi (>2h)
 
@@ -51,18 +51,20 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
 
     # Surgeries to schedule
     c.execute(
-        """
-        SELECT e.id, e.nume_pacient, o.Nume, e.timp_estimare,
-               e.data_interventie, e.user_id,
-               o.Laparoscopic, o.OperatieCurata, o.NecesitaIntubare
-        FROM calendarapp_event   e
-        JOIN calendarapp_operatie o ON e.tip_operatie_id = o.id
-        WHERE strftime('%Y-%m-%d', e.data_interventie) = ?
-          AND e.status = 'in_asteptare'
-        ORDER BY e.id
-        """,
-        (selected_date,),
-    )
+    """
+    SELECT e.id, e.nume_pacient, o.Nume, e.timp_estimare,
+           e.data_interventie, e.user_id,
+           u.first_name, u.last_name,
+           o.Laparoscopic, o.OperatieCurata, o.NecesitaIntubare
+    FROM calendarapp_event   e
+    JOIN calendarapp_operatie o ON e.tip_operatie_id = o.id
+    JOIN accounts_user u ON e.user_id = u.id
+    WHERE strftime('%Y-%m-%d', e.data_interventie) = ?
+      AND e.status = 'in_asteptare'
+    ORDER BY e.id
+    """,
+    (selected_date,),
+)
     surgeries = c.fetchall()
     conn.close()
 
@@ -83,11 +85,12 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
             "type": s[2],
             "duration": s[3],
             "date": s[4],
-            "surgeon": s[5],
-            "laparoscopic": bool(s[6]),
-            "curata": bool(s[7]),
-            "intubare": bool(s[8]),
-            "is_long": s[3] > 120,  # Operații lungi (>2 ore)
+            "surgeon_id": s[5],
+            "surgeon": f"{s[6]} {s[7]}",  # first_name + last_name
+            "laparoscopic": bool(s[8]),
+            "curata": bool(s[9]),
+            "intubare": bool(s[10]),
+            "is_long": s[3] > 120,
         }
         for s in surgeries
     ]
@@ -283,13 +286,25 @@ def solve_ga(rooms: List[Dict], surgeries: List[Dict], epoch: int = 500, pop: in
 # =====================
 
 def schedule_surgeries(selected_date: str):
-    """Interfață publică pentru planificare."""
+    """Returnează programarea, rezervând o singură sală mare pentru urgențe."""
     rooms, surgeries = fetch_data(selected_date)
-    if RESERVED_EMERGENCY_ROOMS and len(rooms) > RESERVED_EMERGENCY_ROOMS:
-        rooms = rooms[RESERVED_EMERGENCY_ROOMS:]
+
+    # 🔒 2.1  Alegem PRIMA sală mare din listă ca sală de urgențe
+    emergency_room_id = None
+    for room in rooms:
+        if room["is_large"]:
+            emergency_room_id = room["id"]
+            break                       # am găsit, ieșim
+
+    # 🔒 2.2  Scoatem sala respectivă din lista dată optimizatorului
+    if emergency_room_id is not None:
+        rooms = [r for r in rooms if r["id"] != emergency_room_id]
+
+    # restul rămâne neschimbat
     if not surgeries:
         return []
     return solve_ga(rooms, surgeries)
+
 
 # =====================
 # —— TEST ——

@@ -50,6 +50,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         ("manager", "Manager"),
         ("surgeon", "Chirurg"),
     ]
+    first_name = models.CharField(_("Prenume"), max_length=150, default="Necunoscut")
+    last_name  = models.CharField(_("Nume"),    max_length=150, default="Necunoscut")
 
     email = models.EmailField(
         _("Email Address"),
@@ -71,6 +73,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
     USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name"]  # obligatoriu pt. createsuperuser
+
 
     def __str__(self):
         return f"{self.email} ({self.get_role_display()})"
