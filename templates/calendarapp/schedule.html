@@ -74,6 +74,19 @@
   overflow:hidden;
   color:#fff;
 }
+
+/* —— bloc sală de urgențe —— */
+.emergency-slot{
+  display:flex;
+  align-items:center;      /* centru vertical */
+  justify-content:center;  /* centru orizontal */
+  font-size:16px;          /* text mai mare */
+  font-weight:bold;
+  text-align:center;
+  background:#3498db;      /* (fix) albastru – schimbă dacă vrei altă culoare */
+  color:#fff;
+}
+ 
 .surgery:hover{ transform:scale(1.02); transition:.2s; }
 </style>
 {% endblock extracss %}
@@ -186,24 +199,32 @@ function drawTimeline(data){
       div.setAttribute("draggable","true");
       div.dataset.id=ev.id;
 
-      /* minutul de start & dimensiuni în % din fereastra 08-17 (540 min) */
+      /* dimensiuni & poziție pe riglă */
       const [sh,sm]=ev.start_time.split(":").map(Number);
       const [eh,em]=ev.end_time.split(":").map(Number);
       const start=((sh*60+sm)-480)/540*100;
       const width=((eh*60+em)-(sh*60+sm))/540*100;
-
       div.style.left=`${start}%`;
       div.style.width=`${width}%`;
-      div.style.backgroundColor=randomColor(ev.id);
-      div.innerHTML=`
-        <div style="font-size:11px;">${ev.start_time}-${ev.end_time}</div>
-        <div style="font-weight:bold;">${ev.type}</div>
-        <div>Dr.&nbsp;${ev.surgeon}</div>
-        <div>Dr.&nbsp;${ev.patient}</div>
 
-      `;
-      line.appendChild(div);
-    });
+      /* —— dacă e blocul de urgențe —— */
+      if(ev.reserved){
+          div.classList.add("emergency-slot");   // aplicăm CSS special
+          div.innerHTML=`${ev.type}`;            // UN singur text, centrat
+      }else{
+          /* altfel – eveniment normal */
+          div.style.backgroundColor=randomColor(ev.id);
+          div.innerHTML=`
+            <div style="font-size:11px;">${ev.start_time}-${ev.end_time}</div>
+            <div style="font-weight:bold;">${ev.type}</div>
+            <div>Dr.&nbsp;${ev.surgeon||""}</div>
+            <div>${ev.patient||""}</div>
+          `;
+      }
+
+  line.appendChild(div);
+});
+
 
     row.appendChild(line);
     body.appendChild(row);

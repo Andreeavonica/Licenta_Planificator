@@ -285,25 +285,58 @@ def solve_ga(rooms: List[Dict], surgeries: List[Dict], epoch: int = 500, pop: in
 # —— API PUBLIC ——
 # =====================
 
+
 def schedule_surgeries(selected_date: str):
-    """Returnează programarea, rezervând o singură sală mare pentru urgențe."""
+    """
+    Generează programul operațiilor pentru ziua aleasă.
+    — rezervăm PRIMA sală mare (is_large=True) pentru urgențe;
+    — ea apare în grafic cu un bloc „Rezervată pentru urgențe”,
+      dar NU este folosită de algoritmul genetic.
+    """
+    # 0. date brute
     rooms, surgeries = fetch_data(selected_date)
 
-    # 🔒 2.1  Alegem PRIMA sală mare din listă ca sală de urgențe
-    emergency_room_id = None
-    for room in rooms:
-        if room["is_large"]:
-            emergency_room_id = room["id"]
-            break                       # am găsit, ieșim
+    # 1. găsim prima sală mare
+    emergency_room = next((r for r in rooms if r["is_large"]), None)
 
-    # 🔒 2.2  Scoatem sala respectivă din lista dată optimizatorului
-    if emergency_room_id is not None:
-        rooms = [r for r in rooms if r["id"] != emergency_room_id]
+    # 2. lista pentru GA = toate sălile, mai puţin cea de urgenţe (dacă există)
+    if emergency_room:
+        rooms_for_ga = [r for r in rooms if r["id"] != emergency_room["id"]]
+    else:
+        rooms_for_ga = rooms
 
-    # restul rămâne neschimbat
-    if not surgeries:
-        return []
-    return solve_ga(rooms, surgeries)
+    # 3. rulează optimizarea (doar pe sălile elective)
+    if surgeries:
+        timetable = solve_ga(rooms_for_ga, surgeries)
+    else:
+        timetable = []
+
+    # 4. adaugă rândul special pentru sală „Rezervată”
+    if emergency_room:
+        dummy_event = {
+        "id": None,
+        "type": "Rezervată pentru urgențe",
+        "start_time": f"{DAY_START // 60:02d}:{DAY_START % 60:02d}",
+        "end_time":   f"{DAY_END   // 60:02d}:{DAY_END   % 60:02d}",
+        "duration": DAY_END - DAY_START,
+        "clean_time": 0,
+        "is_clean": True,
+        "reserved": True,              # marcaj ca să-l detectezi în template
+        "css_class": "emergency-slot", # class extra pentru stil
+}
+
+        timetable.append(
+            {
+                "room": emergency_room["id"],
+                "schedule": [dummy_event],
+                "total_used": 0,
+                "reserved_emergency": True,   # câmp auxiliar (front-end poate ignora)
+            }
+        )
+        # ordonează rândurile după numărul sălii, ca să păstrezi afișarea firească
+        timetable.sort(key=lambda x: x["room"])
+
+    return timetable
 
 
 # =====================
