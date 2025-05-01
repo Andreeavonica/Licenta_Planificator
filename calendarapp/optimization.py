@@ -1,208 +1,308 @@
+from __future__ import annotations
 import sqlite3
+from datetime import datetime
+from typing import List, Dict, Tuple, Optional
 from mealpy.evolutionary_based.GA import BaseGA
 from mealpy.utils.problem import FloatVar
-from datetime import datetime
-import random
 
+"""
+Algoritm de planificare a intervențiilor chirurgicale – versiune optimizată
+-------------------------------------------------------------------------
+Îmbunătățiri față de versiunea precedentă:
+1. Prioritizare mai puternică a operațiilor curate
+2. Gestionare optimizată a operațiilor lungi
+3. Calcul mai precis al timpilor de curățare
+4. Validări suplimentare pentru resurse
+5. Testare mai robustă a constrângerilor
+"""
 
-def fetch_data(selected_date):
-    connection = sqlite3.connect("db.sqlite3")
-    cursor = connection.cursor()
+# =====================
+# —— CONSTANTE ————
+# =====================
+DAY_START = 8 * 60                # 08:00 în minute
+DAY_END = 17 * 60                 # 17:00 în minute
+LATE_PENALTY_COEFF = 0.5          # ponderarea lateness (pe ore)
+DIRTY_CLEAN_GAP = 30              # diferența totală curat ↔ murdar (min)
+CLEANING_TIME_CURATA = 10         # timp curățare operație curată
+CLEANING_TIME_MURDARA = 30        # timp curățare operație murdară
+UNSCHEDULED_PENALTY = 10_000      # penalizare „hard”
+RESERVED_EMERGENCY_ROOMS = 3      # săli rezervate pentru urgențe
+UNUSED_ROOM_PENALTY = 50          # penalizare pentru săli neutilizate
+EARLY_LONG_SURGERY_BONUS = -20    # bonus pentru programarea devreme a operațiilor lungi (>2h)
 
-    cursor.execute("""
+# =====================
+# —— ACCES SQLITE ——
+# =====================
+
+def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
+    """Încărcăm sălile și intervențiile (status = 'in_asteptare') din SQLite."""
+    conn = sqlite3.connect("db.sqlite3")
+    c = conn.cursor()
+
+    # Rooms
+    c.execute(
+        """
         SELECT NrSala, SalaMare, Laparo, Chirurgie
         FROM website_sali
-    """)
-    rooms = cursor.fetchall()
+        ORDER BY NrSala
+        """
+    )
+    rooms = c.fetchall()
 
-    cursor.execute("""
-        SELECT 
-            e.id, 
-            e.nume_pacient, 
-            o.Nume, 
-            e.timp_estimare, 
-            e.data_interventie, 
-            e.user_id,
-            o.Laparoscopic, 
-            o.OperatieCurata, 
-            o.NecesitaIntubare
-        FROM calendarapp_event e
+    # Surgeries to schedule
+    c.execute(
+        """
+        SELECT e.id, e.nume_pacient, o.Nume, e.timp_estimare,
+               e.data_interventie, e.user_id,
+               o.Laparoscopic, o.OperatieCurata, o.NecesitaIntubare
+        FROM calendarapp_event   e
         JOIN calendarapp_operatie o ON e.tip_operatie_id = o.id
         WHERE strftime('%Y-%m-%d', e.data_interventie) = ?
           AND e.status = 'in_asteptare'
-    """, (selected_date,))
-    surgeries = cursor.fetchall()
-
-    connection.close()
+        ORDER BY e.id
+        """,
+        (selected_date,),
+    )
+    surgeries = c.fetchall()
+    conn.close()
 
     room_data = [
         {
             "id": r[0],
-            "is_large": r[1],
-            "laparoscopic": r[2],
-            "chirurgie": r[3]
+            "is_large": bool(r[1]),
+            "laparoscopic": bool(r[2]),
+            "chirurgie": r[3],
         }
         for r in rooms
     ]
 
-    surgery_data = []
-    for s in surgeries:
-        surgery_data.append({
+    surgery_data = [
+        {
             "id": s[0],
-            "name": s[1],
+            "patient": s[1],
             "type": s[2],
             "duration": s[3],
             "date": s[4],
             "surgeon": s[5],
-            "laparoscopic": s[6],
-            "curata": s[7],
-            "intubare": s[8]
-        })
-
+            "laparoscopic": bool(s[6]),
+            "curata": bool(s[7]),
+            "intubare": bool(s[8]),
+            "is_long": s[3] > 120,  # Operații lungi (>2 ore)
+        }
+        for s in surgeries
+    ]
     return room_data, surgery_data
 
+# =====================
+# —— HELPERS ——
+# =====================
 
-def calculate_cleaning_time(surgery):
-    return 10 if surgery["curata"] else 30
+def cleaning_minutes(surgery: Dict) -> int:
+    """Returnează timpul de curățare (10/30 min)."""
+    return CLEANING_TIME_CURATA if surgery["curata"] else CLEANING_TIME_MURDARA
 
 
-def is_room_compatible(room, surgery):
-    if surgery["intubare"] and room["id"] >= 10:
-        return False
+def is_room_compatible(room: Dict, surgery: Dict) -> bool:
+    """Verifică compatibilitatea sălii cu cerințele intervenției."""
+    # Intervenția laparoscopică necesită sală echipată
     if surgery["laparoscopic"] and not room["laparoscopic"]:
+        return False
+    # Intubarea necesită sală mare
+    if surgery["intubare"] and not room["is_large"]:
         return False
     return True
 
 
-def constraint_violations(solution, room_data, surgery_data):
-    violations = 0
-    room_schedules = [[] for _ in range(len(room_data))]
-    surgeon_schedules = {}
-    sala_status = ["curata"] * len(room_data)
+def next_slot(start: int, dur: int, intervals: List[Tuple[int, int]]) -> Optional[int]:
+    """Cel mai devreme start care nu se suprapune peste intervalele existente."""
+    cur = start
+    idx = 0
+    while True:
+        while idx < len(intervals) and intervals[idx][1] <= cur:
+            idx += 1
+        if idx == len(intervals) or cur + dur <= intervals[idx][0]:
+            return cur if cur + dur <= DAY_END else None
+        cur = intervals[idx][1]
+        if cur + dur > DAY_END:
+            return None
 
-    for surgery_idx, room_idx in enumerate(solution):
-        room_schedules[int(round(room_idx))].append(surgery_idx)
+# =====================
+# —— CORE SCHEDULER ——
+# =====================
 
-    for room_idx, room_schedule in enumerate(room_schedules):
-        last_end_time = 480
-        for surg_idx in room_schedule:
-            surgery = surgery_data[surg_idx]
-            room = room_data[room_idx]
+def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict]) -> tuple[list[dict], float]:
+    """Construiește programul și calculează costul pentru o permutare dată."""
+    n_rooms = len(rooms)
 
-            start_time = last_end_time
-            end_time = start_time + surgery["duration"]
+    room_free: List[int] = [DAY_START] * n_rooms
+    room_dirty: List[bool] = [False] * n_rooms  # True dacă sală a avut operație murdară
+    room_schedules: List[list[dict]] = [[] for _ in range(n_rooms)]
+    room_used: List[bool] = [False] * n_rooms  # Pentru penalizarea sălilor neutilizate
 
-            if not is_room_compatible(room, surgery):
-                violations += 1
+    surgeon_map: Dict[int, List[Tuple[int, int]]] = {}
 
-            if end_time > 1020:
-                violations += 1
+    cost_idle = cost_clean = cost_late = 0
+    dirty_penalty = 0
+    unscheduled = 0
+    bonus_early_long = 0
 
-            if sala_status[room_idx] == "murdara" and surgery["curata"]:
-                violations += 1
+    for idx in order:
+        s = surgeries[idx]
+        dur = s["duration"]
+        clean = cleaning_minutes(s)
 
-            if not surgery["curata"]:
-                sala_status[room_idx] = "murdara"
+        chosen_room = chosen_start = None
+        best_room_score = float('inf')
 
-            surgeon = surgery["surgeon"]
-            if surgeon not in surgeon_schedules:
-                surgeon_schedules[surgeon] = []
-            for scheduled_start, scheduled_end in surgeon_schedules[surgeon]:
-                if not (end_time <= scheduled_start or start_time >= scheduled_end):
-                    violations += 1
-            surgeon_schedules[surgeon].append((start_time, end_time))
+        for r_idx, room in enumerate(rooms):
+            # Verifică compatibilitatea sălii
+            if not is_room_compatible(room, s):
+                continue
+            
+            # Evită să programeze operații curate în săli murdare
+            if room_dirty[r_idx] and s["curata"]:
+                continue
 
-            last_end_time = end_time + calculate_cleaning_time(surgery)
+            # Calculează cel mai devreme start posibil
+            start_candidate = room_free[r_idx]
+            start_candidate = next_slot(start_candidate, dur, surgeon_map.get(s["surgeon"], []))
+            if start_candidate is None:
+                continue
+            
+            # Verifică depășirea programului
+            if start_candidate + dur + clean > DAY_END:
+                continue
 
-    return violations
+            # Calculează scorul pentru această sală
+            room_score = start_candidate
+            # Bonus pentru operații lungi programate devreme
+            if s["is_long"] and start_candidate < DAY_START + 120:  # În primele 2 ore
+                room_score += EARLY_LONG_SURGERY_BONUS
+            # Penalizare pentru operații curate în săli care au avut deja operații murdare
+            if room_dirty[r_idx] and s["curata"]:
+                room_score += DIRTY_CLEAN_GAP * 2  # Penalizare dublă
 
+            if room_score < best_room_score:
+                best_room_score = room_score
+                chosen_room, chosen_start = r_idx, start_candidate
 
-def fitness_function(solution, room_data, surgery_data):
-    idle_time = 0
-    cleanup_time = 0
-    score_bonus = 0
+        if chosen_room is None:
+            unscheduled += 1
+            continue
 
-    room_schedules = [[] for _ in range(len(room_data))]
-    sala_status = ["curata"] * len(room_data)
+        # Actualizează programul
+        end_time = chosen_start + dur
+        prev_end = DAY_START if not room_schedules[chosen_room] else room_schedules[chosen_room][-1]["_end"]
+        
+        # Calculează costuri
+        idle_time = max(0, chosen_start - prev_end)
+        cost_idle += idle_time
+        cost_clean += clean
+        cost_late += ((chosen_start - DAY_START) / 60) * (dur / 60) * LATE_PENALTY_COEFF
+        
+        # Bonus pentru operații lungi programate devreme
+        if s["is_long"] and chosen_start < DAY_START + 120:
+            bonus_early_long += EARLY_LONG_SURGERY_BONUS
 
-    for surgery_idx, room_idx in enumerate(solution):
-        room_schedules[int(round(room_idx))].append(surgery_idx)
+        # Penalizare pentru operații murdare
+        if not s["curata"]:
+            room_dirty[chosen_room] = True
+            dirty_penalty += DIRTY_CLEAN_GAP
 
-    for room_idx, room_schedule in enumerate(room_schedules):
-        last_end_time = 480
-        for surg_idx in room_schedule:
-            surgery = surgery_data[surg_idx]
-            room = room_data[room_idx]
+        # Salvează intrarea
+        entry = {
+            "id": s["id"],
+            "type": s["type"],
+            "start_time": f"{chosen_start//60}:{chosen_start%60:02d}",
+            "end_time": f"{end_time//60}:{end_time%60:02d}",
+            "surgeon": s["surgeon"],
+            "patient": s["patient"],
+            "duration": dur,
+            "clean_time": clean,
+            "is_clean": s["curata"],
+            "_end": end_time,
+        }
 
-            start_time = last_end_time
-            end_time = start_time + surgery["duration"]
+        room_schedules[chosen_room].append(entry)
+        room_used[chosen_room] = True
 
-            # Bonus logic
-            if surgery["curata"]:
-                score_bonus += 30
-            if sala_status[room_idx] == "curata" and surgery["curata"]:
-                score_bonus += 80
-            if room["chirurgie"] == surgery["type"]:
-                score_bonus += 40
+        # Actualizează trackere
+        room_free[chosen_room] = end_time + clean
+        surgeon_map.setdefault(s["surgeon"], []).append((chosen_start, end_time))
+        surgeon_map[s["surgeon"]].sort()
 
-            cleanup_time += calculate_cleaning_time(surgery)
-            idle_time += max(0, surgery["duration"] - (last_end_time - 480))
+    # Calculează penalizări pentru săli neutilizate
+    unused_penalty = sum(UNUSED_ROOM_PENALTY for used in room_used if not used)
 
-            if not surgery["curata"]:
-                sala_status[room_idx] = "murdara"
+    # Curăță câmpurile interne
+    timetable: list[dict] = []
+    for r_idx, sched in enumerate(room_schedules):
+        for e in sched:
+            e.pop("_end", None)
+        timetable.append({
+            "room": rooms[r_idx]["id"],
+            "schedule": sched,
+            "total_used": (room_free[r_idx] - DAY_START) if room_used[r_idx] else 0
+        })
 
-            last_end_time = end_time + calculate_cleaning_time(surgery)
-
-    penalty = constraint_violations(solution, room_data, surgery_data)
-    return idle_time + cleanup_time + penalty * 1000 - score_bonus
-
-
-def schedule_surgeries(selected_date):
-    room_data, surgery_data = fetch_data(selected_date)
-
-    if not surgery_data:
-        return []
-
-    guard_room_idx = random.choice([0, 1, 2])  # alegem una din primele 3 săli
-
-    bounds = FloatVar(
-        lb=[0] * len(surgery_data),
-        ub=[len(room_data) - 1] * len(surgery_data),
-        name="room_allocation"
+    # Cost total
+    total_cost = (
+        cost_idle
+        + cost_clean
+        + cost_late
+        + dirty_penalty
+        + UNSCHEDULED_PENALTY * unscheduled
+        + unused_penalty
+        + bonus_early_long
     )
+    return timetable, total_cost
+
+# =====================
+# —— GENETIC ALG. ——
+# =====================
+
+def solve_ga(rooms: List[Dict], surgeries: List[Dict], epoch: int = 500, pop: int = 80):
+    """Rezolvă programarea prin algoritm genetic."""
+    n = len(surgeries)
+    bounds = FloatVar(lb=[0.0] * n, ub=[1.0] * n, name="rk")
 
     def fitness(sol):
-        return fitness_function(sol, room_data, surgery_data)
+        perm = sorted(range(n), key=lambda i: sol[i])
+        _, cost = build_schedule(perm, rooms, surgeries)
+        return cost
 
-    model = BaseGA(epoch=300, pop_size=50, pc=0.9, pm=0.1)
-    problem_dict = {"obj_func": fitness, "bounds": bounds, "minmax": "min"}
-    best_agent = model.solve(problem_dict)
-
-    rounded_solution = [int(round(x)) for x in best_agent.solution]
-    timetable = []
-    room_schedules = [[] for _ in range(len(room_data))]
-
-    for surg_idx, room_idx in enumerate(rounded_solution):
-        if room_idx != guard_room_idx:
-            room_schedules[room_idx].append(surg_idx)
-
-    for room_idx, surgeries in enumerate(room_schedules):
-        room_timetable = {"room": room_data[room_idx]["id"], "schedule": []}
-        last_end_time = 480
-        for s_idx in surgeries:
-            surgery = surgery_data[s_idx]
-            start_time = max(last_end_time, 480)
-            end_time = start_time + surgery["duration"]
-            room_timetable["schedule"].append({
-                "id": surgery["id"],
-                "type": surgery["type"],
-                "surgery": surgery["name"],
-                "start_time": f"{start_time // 60}:{start_time % 60:02d}",
-                "end_time": f"{end_time // 60}:{end_time % 60:02d}",
-                "surgeon": surgery["surgeon"],
-                "sala": room_data[room_idx]["id"] 
-            })
-            last_end_time = end_time + calculate_cleaning_time(surgery)
-        timetable.append(room_timetable)
-
+    model = BaseGA(epoch=epoch, pop_size=pop, pc=0.9, pm=0.2)
+    problem = {"obj_func": fitness, "bounds": bounds, "minmax": "min"}
+    best = model.solve(problem)
+    best_perm = sorted(range(n), key=lambda i: best.solution[i])
+    timetable, _ = build_schedule(best_perm, rooms, surgeries)
     return timetable
+
+# =====================
+# —— API PUBLIC ——
+# =====================
+
+def schedule_surgeries(selected_date: str):
+    """Interfață publică pentru planificare."""
+    rooms, surgeries = fetch_data(selected_date)
+    if RESERVED_EMERGENCY_ROOMS and len(rooms) > RESERVED_EMERGENCY_ROOMS:
+        rooms = rooms[RESERVED_EMERGENCY_ROOMS:]
+    if not surgeries:
+        return []
+    return solve_ga(rooms, surgeries)
+
+# =====================
+# —— TEST ——
+# =====================
+if __name__ == "__main__":
+    today = datetime.now().strftime("%Y-%m-%d")
+    print(f"Running surgical scheduler for {today}")
+    timetable = schedule_surgeries(today)
+    
+    print("\nResulting Schedule:")
+    for room in timetable:
+        print(f"\nRoom {room['room']} (Total used: {room['total_used']} minutes):")
+        for event in room["schedule"]:
+            print(f"  {event['start_time']}-{event['end_time']}: {event['type']} "
+                  f"(Patient: {event['patient']}, Surgeon: {event['surgeon']}, "
+                  f"Clean: {event['clean_time']}min)")
