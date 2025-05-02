@@ -40,5 +40,11 @@ class CompletedEventsListView(ListView):
     def get_queryset(self):
         return Event.objects.get_completed_events(user=self.request.user)
     
+class PendingEventsListView(ListView):
+    """Afişează numai cererile în aşteptare"""
 
+    template_name = "calendarapp/events_list.html"
+    model = Event
 
+    def get_queryset(self):
+        return Event.objects.get_pending_events(user=self.request.user)

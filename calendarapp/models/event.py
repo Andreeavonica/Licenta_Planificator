@@ -34,6 +34,14 @@ class EventManager(models.Manager):
             data_interventie__gt=datetime.now().date(),
         )
 
+    def get_pending_events(self, user):
+        return Event.objects.filter(
+            user=user,
+            is_active=True,
+            is_deleted=False,
+            status="in_asteptare"      # doar cererile încă în aşteptare
+        ).order_by("data_interventie")
+
 
 class Operatie(models.Model):
     Nume = models.CharField(max_length=255)

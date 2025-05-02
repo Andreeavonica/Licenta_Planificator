@@ -304,7 +304,6 @@ function confirmSchedule(){
   .then(r=>r.json())
   .then(data=>{
     alert(data.message||"Planificare confirmată.");
-    window.location.reload();
   })
   .catch(err=>alert("Eroare la confirmare: "+err));
 }

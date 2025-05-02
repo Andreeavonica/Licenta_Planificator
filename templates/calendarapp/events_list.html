@@ -30,6 +30,9 @@
                                             <th>Nume Pacient</th> <!-- Modificat de la Event Name -->
                                             <th>Data Intervenției</th> <!-- Modificat de la Start Time -->
                                             <th>Tip  Operatie</th> <!-- Nouă coloană pentru status -->
+                                            <th>Timp Estimat </th> <!-- Nouă coloană pentru status -->
+                                            <th>Constrangeri Speciale</th> <!-- Nouă coloană pentru status -->
+                                            <th>Observatii</th> <!-- Nouă coloană pentru status -->
                                             <th>Status</th> <!-- Nouă coloană pentru status -->
                                         </tr>
                                     </thead>
@@ -38,8 +41,12 @@
                                             <tr role="row" class="odd">
                                                 <td>{{ forloop.counter }}</td>
                                                 <td>{{ event.nume_pacient }}</td>  <!-- Afișează numele pacientului -->
-                                                <td>{{ event.data_interventie }}</td>  <!-- Afișează doar data intervenției -->                                            
+                                                <td>{{ event.data_interventie|date:"j F Y" }}</td>
                                                 <td>{{ event.tip_operatie }}</td>
+                                                <td>{{ event.timp_estimare }}</td>
+                                                <td>{{ event.constrangeri_speciale}}</td>
+                                                <td>{{ event.observatii}}</td>
+
                                                 <td>{{ event.get_status_display }}</td>  <!-- Afișează statusul în format lizibil -->
                                             </tr>
                                         {% empty %}
