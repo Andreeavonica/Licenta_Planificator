@@ -147,165 +147,144 @@
 <script>
 let lastScheduleData = null;
 
-/* ——— paletă culori simplă ——— */
+/* culori random     */
 function randomColor(id){
-  const colors=['#4dabf7','#20c997','#fcc419','#f783ac','#845ef7','#38d9a9'];
-  return colors[id%colors.length];
+  const c=['#4dabf7','#20c997','#fcc419','#f783ac','#845ef7','#38d9a9'];
+  return c[id%c.length];
 }
 
-/* ——— rulează optimizarea pe server ——— */
+/* ------------ rulează algoritmul ------------ */
 function runSchedule(){
   const selectedDate=document.getElementById("selectedDate").value;
   if(!selectedDate){ alert("Vă rugăm să selectați o dată!"); return; }
+
   fetch("{% url 'calendarapp:run_schedule' %}?date="+selectedDate)
     .then(r=>r.json())
     .then(data=>{
-      if(data.error){
-        document.getElementById("timeline-body").innerHTML=
-          `<div class="alert alert-danger"><strong>Eroare:</strong> ${data.error}</div>`;
-        return;
-      }
-      lastScheduleData=data;
-      drawTimeline(data);
+        if(data.error){
+           document.getElementById("timeline-body").innerHTML=
+             `<div class="alert alert-danger"><b>Eroare:</b> ${data.error}</div>`;
+           return;
+        }
+        lastScheduleData = data;
+        drawTimeline(data);
+
+        /* 🔸 A1 – salvăm orarul în TAB */
+        sessionStorage.setItem("last_timetable",
+              JSON.stringify({date: selectedDate, data: data}));
     })
     .catch(err=>{
-      document.getElementById("timeline-body").innerHTML=
-        `<div class="alert alert-danger">Eroare: ${err}</div>`;
+        document.getElementById("timeline-body").innerHTML=
+           `<div class="alert alert-danger">Eroare: ${err}</div>`;
     });
 }
 
-/* ——— desenează rigla orară (19 tick-uri) ——— */
+/* ------------ desenează rigla ------------ */
 function buildTimeHeader(){
-  const header=document.createElement("div");
-  header.classList.add("time-header");
-
-  const INTERVALS=18;              // 18 × 30 min între 08:00-16:30
-  for(let i=0;i<=INTERVALS;i++){   // 0..18 → 19 marcaje
-    const tick=document.createElement("span");
-    tick.className="time-tick";
-    /* ora + minut */
-    const minutes=480+i*30;        // 480 min = 8*60
-    const hh=Math.floor(minutes/60).toString().padStart(2,"0");
-    const mm=(minutes%60===0)?"00":"30";
-    tick.textContent=`${hh}:${mm}`;
-    /* poziția procentuală */
-    tick.style.left=`${i/INTERVALS*100}%`;
-    header.appendChild(tick);
+  const h=document.createElement("div"); h.className="time-header";
+  const N=18;
+  for(let i=0;i<=N;i++){
+     const t=document.createElement("span"); t.className="time-tick";
+     const m=480+i*30, hh=String(Math.floor(m/60)).padStart(2,"0"),
+           mm=(m%60===0)?"00":"30";
+     t.textContent=`${hh}:${mm}`;
+     t.style.left=`${i/N*100}%`; h.appendChild(t);
   }
-  return header;
+  return h;
 }
 
-/* ——— desenează tot timeline-ul ——— */
+/* ------------ desenează timeline ------------ */
 function drawTimeline(data){
   const body=document.getElementById("timeline-body");
-  body.innerHTML="";
+  body.innerHTML=""; body.appendChild(buildTimeHeader());
 
-  /* header orar */
-  body.appendChild(buildTimeHeader());
-
-  /* fiecare sală → un rând */
   data.room_allocations.forEach(room=>{
-    const row=document.createElement("div");
-    row.className="timeline-row";
+     const row=document.createElement("div"); row.className="timeline-row";
+     const lab=document.createElement("div"); lab.className="timeline-label";
+     lab.textContent=`Sală ${room.room}`; row.appendChild(lab);
 
-    const label=document.createElement("div");
-    label.className="timeline-label";
-    label.textContent=`Sală ${room.room}`;
-    row.appendChild(label);
+     const line=document.createElement("div"); line.className="timeline-line";
 
-    const line=document.createElement("div");
-    line.className="timeline-line";
+     room.schedule.forEach(ev=>{
+        const d=document.createElement("div"); d.className="surgery";
+        d.dataset.id=ev.id;
 
-    room.schedule.forEach(ev=>{
-      const div=document.createElement("div");
-      div.className="surgery";
-      div.setAttribute("draggable","true");
-      div.dataset.id=ev.id;
+        const [sh,sm]=ev.start_time.split(":").map(Number),
+              [eh,em]=ev.end_time.split(":").map(Number);
+        d.style.left = ((sh*60+sm-480)/540*100)+"%";
+        d.style.width= (((eh*60+em)-(sh*60+sm))/540*100)+"%";
+        d.style.backgroundColor=randomColor(ev.id);
 
-      /* dimensiuni & poziție pe riglă */
-      const [sh,sm]=ev.start_time.split(":").map(Number);
-      const [eh,em]=ev.end_time.split(":").map(Number);
-      const start=((sh*60+sm)-480)/540*100;
-      const width=((eh*60+em)-(sh*60+sm))/540*100;
-      div.style.left=`${start}%`;
-      div.style.width=`${width}%`;
-
-      /* —— dacă e blocul de urgențe —— */
-      if(ev.reserved){
-          div.classList.add("emergency-slot");   // aplicăm CSS special
-          div.innerHTML=`${ev.type}`;            // UN singur text, centrat
-      }else{
-          /* altfel – eveniment normal */
-          div.style.backgroundColor=randomColor(ev.id);
-          div.innerHTML = `
-          <div style="font-size:12px; font-weight:600;">
-            ${ev.start_time}-${ev.end_time} / ${ev.type}
-          </div>
-          <div style="font-size:12px; font-weight:600;">
-            👨‍⚕️ ${ev.surgeon || "-"} / 🧍 ${ev.patient || "-"}
-          </div>
-        `;
-
-
-      }
-
-  line.appendChild(div);
-});
-
-
-    row.appendChild(line);
-    body.appendChild(row);
+        d.innerHTML=`<div style="font-size:12px;font-weight:600;">
+                        ${ev.start_time}-${ev.end_time} / ${ev.type}
+                     </div>
+                     <div style="font-size:12px;font-weight:600;">
+                        👨‍⚕️ ${ev.surgeon||"-"} / N ${ev.nurse||"-"}
+                     </div>`;
+        line.appendChild(d);
+     });
+     row.appendChild(line); body.appendChild(row);
   });
 }
 
-/* ——— drag & drop mutare sală ——— */
+/* ------------ drag & drop (neschimbat) ------------ */
 document.addEventListener("DOMContentLoaded",()=>{
+
+  /* 🔸 A2 – restaurăm, dacă există, orarul salvat */
+  const saved = sessionStorage.getItem("last_timetable");
+  if(saved){
+      const obj = JSON.parse(saved);        // {date:"YYYY-MM-DD",data:{…}}
+      document.getElementById("selectedDate").value = obj.date;
+      lastScheduleData = obj.data;
+      drawTimeline(obj.data);
+  }
+
   document.addEventListener("dragstart",e=>{
-    if(e.target.classList.contains("surgery")){
-      e.dataTransfer.setData("text/plain",e.target.dataset.id);
-    }
+      if(e.target.classList.contains("surgery"))
+          e.dataTransfer.setData("text/plain", e.target.dataset.id);
   });
   document.addEventListener("dragover",e=>{
-    if(e.target.classList.contains("timeline-line")) e.preventDefault();
+      if(e.target.classList.contains("timeline-line")) e.preventDefault();
   });
   document.addEventListener("drop",e=>{
-    if(e.target.classList.contains("timeline-line")){
-      e.preventDefault();
-      const id=e.dataTransfer.getData("text/plain");
-      const newRoom=e.target.parentElement.querySelector(".timeline-label")
-                    .textContent.replace("Sală","").trim();
-      const dragged=document.querySelector(`.surgery[data-id='${id}']`);
-      if(!dragged) return;
-      e.target.appendChild(dragged);
+      if(e.target.classList.contains("timeline-line")){
+          e.preventDefault();
+          const id=e.dataTransfer.getData("text/plain");
+          const newRoom=e.target.parentElement.querySelector(".timeline-label")
+                       .textContent.replace("Sală","").trim();
+          const dragged=document.querySelector(`.surgery[data-id='${id}']`);
+          if(!dragged) return;
+          e.target.appendChild(dragged);
 
-      fetch("{% url 'calendarapp:move_surgery' %}",{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "X-CSRFToken":"{{ csrf_token }}"
-        },
-        body:JSON.stringify({id,new_room:newRoom})
-      }).then(r=>r.json()).then(msg=>console.log("✔️ "+msg.message));
-    }
+          fetch("{% url 'calendarapp:move_surgery' %}",{
+              method:"POST",
+              headers:{
+                 "Content-Type":"application/json",
+                 "X-CSRFToken":"{{ csrf_token }}"
+              },
+              body:JSON.stringify({id,new_room:newRoom})
+          }).then(r=>r.json()).then(msg=>console.log("✔️ "+msg.message));
+      }
   });
 });
 
-/* ——— confirmă planificarea ——— */
+/* ------------ confirmare (fără reload) ------------ */
 function confirmSchedule(){
-  if(!lastScheduleData){ alert("Trebuie să generezi o planificare mai întâi!"); return; }
+  if(!lastScheduleData){ alert("Generați orarul mai întâi!"); return; }
   fetch("{% url 'calendarapp:confirm_schedule' %}",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "X-CSRFToken":"{{ csrf_token }}"
-    },
-    body:JSON.stringify(lastScheduleData)
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-CSRFToken":"{{ csrf_token }}"
+      },
+      body:JSON.stringify(lastScheduleData)
   })
   .then(r=>r.json())
-  .then(data=>{
-    alert(data.message||"Planificare confirmată.");
+  .then(d=>{
+      alert(d.message||"Planificare confirmată.");
+      document.getElementById("confirmButton").disabled=true;
   })
-  .catch(err=>alert("Eroare la confirmare: "+err));
+  .catch(e=>alert("Eroare confirmare: "+e));
 }
 </script>
 {% endblock extrascripts %}
