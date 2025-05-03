@@ -4,6 +4,7 @@
 
 {% block extracss %}
   <link href="{% static 'calender/main.css' %}" rel="stylesheet" />
+  
 {% endblock extracss %}
 
 {% block breadcrumb %}
@@ -23,13 +24,17 @@
         <div class="tile row">
             <div class="col-md-3">
                 <div id="external-events">
-                    <h4 class="mb-4">Running Events</h4>
+                    <h4 class="mb-4">Evenimente viitoare</h4>
                     {% for event in events_month %}
                       <div class="fc-event">
-                          <h3>{{ event.nume_pacient }}</h3>
-                          <p>Tip Operație: {{ event.tip_operatie }}</p>
-                          <p>Status: {{ event.get_status_display }}</p>
-                          <p>Data Intervenției: {{ event.data_interventie }}</p>
+                          <h3>{{ event.tip_operatie }}</h3>
+                          <div>Data Intervenției: {{ event.data_interventie|date:"j F Y" }}</div>
+                          <div>Nume Pacient: {{ event.nume_pacient }}</div>
+                          <div>Sala alocata: {{ event.sala_alocata }}</div>
+                          <div>Ora inceput: {{ event.ora_inceput|time:"H:i" }}</div>
+                          <div>Ora_sfarsit: {{ event.ora_sfarsit|time:"H:i" }}</div>
+                          <div>Durata: {{ event.durata }} min</div>
+                          <div>Status: {{ event.get_status_display }}</div>
 
                       </div>
                     {% empty %}
@@ -134,6 +139,10 @@
                                 <div class="form-group">
                                     <p id="observatii_detail"></p>
                                 </div>
+
+                                <div class="form-group">
+                                    <p id="get_status_display"></p>
+                                </div>
             
                             </div>
                             <div class="modal-footer">
@@ -208,12 +217,16 @@
                 var tipOperatie = arg.event.extendedProps.tip_operatie || "N/A";
                 var constrangeriSpeciale = arg.event.extendedProps.constrangeri_speciale || "N/A";
                 var observatii = arg.event.extendedProps.observatii || "N/A";
+                var status = arg.event.extendedProps.status || "N/A";
+
 
                 var modal = document.getElementById('detailModal');
                 document.getElementById('title_event_detail').textContent = "Nume Pacient: " + numePacient;
                 document.getElementById('tip_operatie_detail').textContent = "Tip Operație: " + tipOperatie;
                 document.getElementById('constrangeri_speciale_detail').textContent = "Constrângeri Speciale: " + constrangeriSpeciale;
                 document.getElementById('observatii_detail').textContent = "Observații: " + observatii;
+                document.getElementById('get_status_display').textContent = "Status: " + status;
+
 
                 document.getElementById("delete-event-button").setAttribute("data-event-id", id);
                 document.getElementById("add-to-next-week").setAttribute("data-event-id-week", id);

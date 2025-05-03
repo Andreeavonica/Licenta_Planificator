@@ -152,19 +152,22 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
         ).order_by("data_interventie")
 
         event_list = []
-        for event in events:
-            event_list.append(
-                {
-                    "id": event.id,
-                    "title": event.nume_pacient, 
-                    "nume_pacient": event.nume_pacient,
-                    "tip_operatie": event.tip_operatie.Nume,
-                    "start": event.data_interventie.strftime("%Y-%m-%dT%H:%M:%S"),
-                    "constrangeri_speciale": event.constrangeri_speciale,
-                    "observatii": event.observatii,
-                    "status": event.get_status_display()
-                }
-            )
+        for event in events.order_by("ora_inceput"):  # sortare crescătoare după ora_inceput
+            ora_formatata = event.ora_inceput.strftime("%H:%M") if event.ora_inceput else "00:00"
+            tip_operatie = event.tip_operatie.Nume if event.tip_operatie else "Fără tip"
+            
+            event_list.append({
+                "id": event.id,
+                "title": f"{tip_operatie} - {ora_formatata}",
+                "start": f"{event.data_interventie.strftime('%Y-%m-%d')}T{ora_formatata}",
+                "status": event.get_status_display(),
+                "tip_operatie": tip_operatie,
+                "constrangeri_speciale": event.constrangeri_speciale,
+                "observatii": event.observatii,
+                "nume_pacient": event.nume_pacient,
+                "data_interventie": event.data_interventie.isoformat(),
+            })
+
 
         print("DEBUG: Events Month", events_month)  # Verificăm în consolă
 
