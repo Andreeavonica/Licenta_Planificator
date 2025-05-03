@@ -25,17 +25,39 @@
                             <div class="col-sm-12">
                                 <table class="table table-hover table-bordered dataTable no-footer" id="sampleTable" role="grid" aria-describedby="sampleTable_info">
                                     <thead>
-                                        <tr role="row">
+                                        <tr>
                                             <th>SL</th>
-                                            <th>Nume Pacient</th> <!-- Modificat de la Event Name -->
-                                            <th>Data Intervenției</th> <!-- Modificat de la Start Time -->
-                                            <th>Tip  Operatie</th> <!-- Nouă coloană pentru status -->
-                                            <th>Timp Estimat </th> <!-- Nouă coloană pentru status -->
-                                            <th>Constrangeri Speciale</th> <!-- Nouă coloană pentru status -->
-                                            <th>Observatii</th> <!-- Nouă coloană pentru status -->
-                                            <th>Status</th> <!-- Nouă coloană pentru status -->
+                                            <th>Nume Pacient</th>
+                                            <th>Data Intervenției</th>
+                                            <th>Tip Operatie</th>
+                                        
+                                            {% if show_pending_fields %}
+                                                <th>Timp Estimat</th>
+                                                <th>Constrângeri Speciale</th>
+                                                <th>Observații</th>
+                                                <th>Status</th> <!-- Nouă coloană pentru status -->
+
+                                            {% endif %}
+                                        
+                                            {% if show_approved_fields %}
+                                                <th>Constrângeri Speciale</th>
+                                                <th>Observații</th>
+                                                <th>Sală</th>
+                                                <th>Ora început</th>
+                                                <th>Ora sfârșit</th>
+                                                <th>Durată</th>
+                                                <th>Status</th> <!-- Nouă coloană pentru status -->
+
+                                            {% endif %}
+                                        
+                                            {% if show_all_fields %}
+                                                <th>Constrângeri Speciale</th>
+                                                <th>Observații</th>
+                                                <th>Status</th> <!-- Nouă coloană pentru status -->
+                                            {% endif %}
                                         </tr>
-                                    </thead>
+                                        </thead>
+                                        
                                     <tbody>
                                         {% for event in object_list %}
                                             <tr role="row" class="odd">
@@ -43,11 +65,33 @@
                                                 <td>{{ event.nume_pacient }}</td>  <!-- Afișează numele pacientului -->
                                                 <td>{{ event.data_interventie|date:"j F Y" }}</td>
                                                 <td>{{ event.tip_operatie }}</td>
-                                                <td>{{ event.timp_estimare }}</td>
-                                                <td>{{ event.constrangeri_speciale}}</td>
-                                                <td>{{ event.observatii}}</td>
 
-                                                <td>{{ event.get_status_display }}</td>  <!-- Afișează statusul în format lizibil -->
+
+                                                {% if show_pending_fields %}
+                                                    <td>{{ event.timp_estimare }}</td>
+                                                    <td>{{ event.constrangeri_speciale }}</td>
+                                                    <td>{{ event.observatii }}</td>
+                                                    <td>{{ event.get_status_display }}</td>
+
+                                                {% endif %}
+
+                                                {% if show_approved_fields %}
+                                                    <td>{{ event.constrangeri_speciale }}</td>
+                                                    <td>{{ event.observatii }}</td>
+                                                    <td>{{ event.sala_alocata }}</td>
+                                                    <td>{{ event.ora_inceput|time:"H:i" }}</td>
+                                                    <td>{{ event.ora_sfarsit|time:"H:i" }}</td>
+                                                    <td>{{ event.durata }} min</td>
+                                                    <td>{{ event.get_status_display }}</td>
+
+                                                {% endif %}
+
+                                                {% if show_all_fields %}
+                                                    <td>{{ event.constrangeri_speciale }}</td>
+                                                    <td>{{ event.observatii }}</td>
+                                                    <td>{{ event.get_status_display }}</td>
+                                                {% endif %}
+
                                             </tr>
                                         {% empty %}
                                             <tr>
