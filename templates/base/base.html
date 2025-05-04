@@ -24,6 +24,16 @@
         <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
         {% block extracss %}
         {% endblock extracss %}
+        <style>
+            .badge-info {
+              background-color: #028476;
+              color: white;
+              font-size: 12px;
+              padding: 3px 6px;
+              border-radius: 4px;
+            }
+            </style>
+            
     </head>
     <body class="app sidebar-mini">
         <!-- Navbar-->
@@ -79,19 +89,39 @@
                 {% endif %}
 
                 <li class="dropdown">
-                    <a class="app-nav__item" href="#" data-toggle="dropdown" aria-label="Open Profile Menu"><i class="fa fa-user fa-lg"></i></a>
-                    <ul class="dropdown-menu settings-menu dropdown-menu-right">
-                        <!-- <li>
-                            <a class="dropdown-item" href="#"><i class="fa fa-cog fa-lg"></i> Settings</a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="#"><i class="fa fa-user fa-lg"></i> Profile</a>
-                        </li> -->
-                        <li>
-                            <a class="dropdown-item" href="{% url 'accounts:signout' %}"><i class="fa fa-sign-out fa-lg"></i> Sign Out</a>
-                        </li>
+                    <a class="app-nav__item" href="#" data-toggle="dropdown" aria-label="Open Profile Menu">
+                      <i class="fa fa-user fa-lg"></i>
+                    </a>
+                    <ul class="app-notification dropdown-menu dropdown-menu-right">
+                      {% if request.user.is_authenticated %}
+                        <li class="app-notification__title text-center">Profilul meu</li>
+                        <div class="app-notification__content">
+                          <li class="app-notification__item">
+                            <div class="app-notification__icon">
+                              <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x text-info"></i>
+                                <i class="fa fa-user fa-stack-1x fa-inverse"></i>
+                              </span>
+                            </div>
+                            <div>
+                              <p class="app-notification__message"><strong>{{ request.user.first_name }} {{ request.user.last_name }}</strong></p>
+                              <p class="app-notification__meta">{{ request.user.email }}</p>
+                              <span class="badge badge-info">{{ request.user.get_role_display }}</span>
+                            </div>
+                          </li>
+                        </div>
+                        <li class="app-notification__footer">
+                            <a href="{% url 'accounts:signout' %}">
+                              <i class="fa fa-sign-out fa-lg"></i> Sign Out
+                            </a>
+                          </li>
+
+                      {% endif %}
                     </ul>
-                </li>
+                  </li>
+                  
+                                  
+                
             </ul>
         </header>
         <!-- Sidebar menu-->

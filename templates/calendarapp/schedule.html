@@ -63,7 +63,7 @@
   height: 100%;
   background: #fff; /* curat, fără dungi CSS */
 }
-  
+
 
 
 /* —————— BARE INTERVENȚII —————— */
@@ -230,10 +230,10 @@ function drawTimeline(data){
       } else {
         div.style.backgroundColor = randomColor(ev.id);
         div.innerHTML = `
-          <div style="font-size:13px; font-weight:600;">
+          <div style="font-size:14px; font-weight:600;">
             ${ev.start_time}-${ev.end_time} / ${ev.type}
           </div>
-          <div style="font-size:13px;">
+          <div style="font-size:14px;">
             👨‍⚕️ ${ev.surgeon || "-"} / 🧍 ${ev.patient || "-"}
           </div>
         `;
