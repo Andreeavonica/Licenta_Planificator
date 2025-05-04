@@ -86,3 +86,16 @@ class Event(EventAbstract):
     def get_html_url(self):
         url = reverse("calendarapp:event-detail", args=(self.id,))
         return f'<a href="{url}"> {self.nume_pacient} - {self.tip_operatie.Nume} </a>'
+
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notificare pentru {self.user.username}: {self.message[:20]}"

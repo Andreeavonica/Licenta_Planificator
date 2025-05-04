@@ -23,6 +23,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 
 
+from calendarapp.models.event import Notification  # adaugă în partea de importuri
 
 
 
@@ -171,12 +172,16 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
 
 
         print("DEBUG: Events Month", events_month)  # Verificăm în consolă
-
+        notifications = []
+        if request.user.is_authenticated:
+            notifications = request.user.notifications.filter(is_read=False)[:5]
         context = {
             "form": forms,
             "events": event_list,
             "events_month": events_month,  # Transmitem events_month către calendar.html
             "status_filter": status_filter,
+            "notifications": notifications  # adaugă aici
+
         }
         return render(request, self.template_name, context)
 
@@ -252,6 +257,11 @@ def confirm_schedule(request):
                 try:
                     # Căutăm intervenția după nume
                     event = Event.objects.get(id=surgery["id"])
+                    if event.status == "in_asteptare":
+                        Notification.objects.create(
+                            user=event.user,
+                            message=f"Operația pentru pacientul {event.nume_pacient} a fost aprobată și programată."
+                        )   
                     # Convertim ora_start / ora_sfarsit
                     start_parts = surgery["start_time"].split(":")
                     end_parts = surgery["end_time"].split(":")
@@ -309,3 +319,11 @@ def move_surgery(request):
 
     # 🟡 Evităm return None pentru alte metode
     return JsonResponse({"error": "Method not allowed"}, status=405)
+
+from django.contrib.auth.decorators import login_required
+from calendarapp.models.event import Notification
+
+@login_required
+def mark_all_notifications_read(request):
+    request.user.notifications.filter(is_read=False).update(is_read=True)
+    return redirect("calendarapp:calendar")

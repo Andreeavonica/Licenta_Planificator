@@ -2,6 +2,9 @@ from django.urls import path
 
 from . import views
 from .views import other_views
+from calendarapp.views.other_views import mark_all_notifications_read
+
+
 
 app_name = "calendarapp"
 
@@ -48,6 +51,8 @@ urlpatterns = [
     path("run-schedule/", other_views.run_schedule, name="run_schedule"),
     path("confirm-schedule/", other_views.confirm_schedule, name="confirm_schedule"),
     path("move-surgery/", other_views.move_surgery, name="move_surgery"),
+    path("notifications/mark_all_read/", mark_all_notifications_read, name="mark_all_notifications_read"),
+
 
 
 ]
