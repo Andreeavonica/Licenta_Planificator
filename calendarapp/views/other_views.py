@@ -158,9 +158,10 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
             
             event_list.append({
                 "id": event.id,
-                "title": f"{tip_operatie} - {ora_formatata}",
+                "title": f"{ora_formatata} - {tip_operatie}",
                 "start": f"{event.data_interventie.strftime('%Y-%m-%d')}T{ora_formatata}",
                 "status": event.get_status_display(),
+                "sala_alocata": event.sala_alocata,
                 "tip_operatie": tip_operatie,
                 "constrangeri_speciale": event.constrangeri_speciale,
                 "observatii": event.observatii,

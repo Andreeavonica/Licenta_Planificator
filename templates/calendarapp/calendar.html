@@ -125,13 +125,13 @@
                                 </div>
                                 
                                 <div class="form-group">
-                                    <p id="start_event_detail"></p>
-                                </div>
-            
-                                <div class="form-group">
                                     <p id="tip_operatie_detail"></p>
                                 </div>
             
+                                <div class="form-group">
+                                    <p id="sala_event_detail"></p>
+                                </div>
+
                                 <div class="form-group">
                                     <p id="constrangeri_speciale_detail"></p>
                                 </div>
@@ -197,6 +197,7 @@
                 right: 'dayGridMonth,timeGridWeek,timeGridDay,list'
             },
             initialDate: today,
+            displayEventTime: false,
             navLinks: true,
             selectable: true,
             selectMirror: true,
@@ -209,7 +210,7 @@
 
             eventClick: function(arg) {
                 var id = arg.event.id;
-                var numePacient = arg.event.title || "N/A";  
+                var numePacient = arg.event.extendedProps.nume_pacient || "N/A";
                 var dataInterventie = arg.event.extendedProps.data_interventie || "N/A";
                 if (dataInterventie !== "N/A") {
                     dataInterventie = formatDateTime(dataInterventie);  
@@ -218,6 +219,9 @@
                 var constrangeriSpeciale = arg.event.extendedProps.constrangeri_speciale || "N/A";
                 var observatii = arg.event.extendedProps.observatii || "N/A";
                 var status = arg.event.extendedProps.status || "N/A";
+                var sala = arg.event.extendedProps.sala_alocata;
+
+
 
 
                 var modal = document.getElementById('detailModal');
@@ -226,6 +230,8 @@
                 document.getElementById('constrangeri_speciale_detail').textContent = "Constrângeri Speciale: " + constrangeriSpeciale;
                 document.getElementById('observatii_detail').textContent = "Observații: " + observatii;
                 document.getElementById('get_status_display').textContent = "Status: " + status;
+                document.getElementById('sala_event_detail').textContent = "Sala alocata: " + sala;
+
 
 
                 document.getElementById("delete-event-button").setAttribute("data-event-id", id);
