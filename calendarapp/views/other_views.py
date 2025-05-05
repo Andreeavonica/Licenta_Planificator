@@ -153,14 +153,27 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
         ).order_by("data_interventie")
 
         event_list = []
-        for event in events.order_by("ora_inceput"):  # sortare crescătoare după ora_inceput
-            ora_formatata = event.ora_inceput.strftime("%H:%M") if event.ora_inceput else "00:00"
+        
+        for event in events.order_by("ora_inceput"):
+            # Formatăm ora ca interval "HH:MM - HH:MM"
+            if event.ora_inceput and event.ora_sfarsit:
+                ora_formatata = f"{event.ora_inceput.strftime('%H:%M')} - {event.ora_sfarsit.strftime('%H:%M')}"
+            else:
+                ora_formatata = "Nespecificat"
+
+            # Obținem numele operației
             tip_operatie = event.tip_operatie.Nume if event.tip_operatie else "Fără tip"
-            
+
+            # Titlul depinde de status
+            if event.status == "in_asteptare":
+                title = tip_operatie
+            else:
+                title = f"{ora_formatata} - {tip_operatie}"
+
             event_list.append({
                 "id": event.id,
-                "title": f"{ora_formatata} - {tip_operatie}",
-                "start": f"{event.data_interventie.strftime('%Y-%m-%d')}T{ora_formatata}",
+                "title": title,
+                "start": f"{event.data_interventie.strftime('%Y-%m-%d')}T00:00:00",  # ora nefolosită în day view
                 "status": event.get_status_display(),
                 "sala_alocata": event.sala_alocata,
                 "tip_operatie": tip_operatie,
@@ -169,6 +182,7 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 "nume_pacient": event.nume_pacient,
                 "data_interventie": event.data_interventie.isoformat(),
             })
+
 
 
         print("DEBUG: Events Month", events_month)  # Verificăm în consolă

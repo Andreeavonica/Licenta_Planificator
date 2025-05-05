@@ -5,48 +5,75 @@
 {% block extracss %}
   <link href="{% static 'calender/main.css' %}" rel="stylesheet" />
   <style>
-    .switch {
-  position: relative;
-  display: inline-block;
-  width: 46px;
-  height: 22px;
+    
+    .btn-group-status button {
+  margin-right: 5px;
+  border-radius: 20px;
+  font-weight: 500;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
+.btn-group-status .btn-outline-primary:hover {
+  background-color: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
 }
 
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #ccc; /* gri neutru */
-  transition: 0.4s;
-  border-radius: 34px;
+.btn-group-status .btn-outline-success:hover {
+  background-color: #10b981;
+  color: #fff;
+  border-color: #10b981;
 }
 
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-  background-color: #fff;
-  transition: 0.4s;
-  border-radius: 50%;
-  box-shadow: 0 0 2px rgba(0,0,0,0.2);
+.btn-group-status .btn-outline-warning:hover {
+  background-color: #f97316;
+  color: #fff;
+  border-color: #f97316;
 }
 
-input:checked + .slider {
+/* Evenimente Calendar */
+.fc-event.aprobat {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  color: #fff !important;
+}
+
+.fc-event.in-asteptare {
+  background-color: #f97316 !important;
+  border-color: #f97316 !important;
+  color: #fff !important;
+}
+
+#calendar-filters {
+  margin-bottom: 10px;
+  gap: 10px;
+}
+
+#calendar {
+  margin-top: 10px;
+}
+/* Stilizare butoane filtrare ca cele din FullCalendar */
+#calendar-filters button {
+  padding: 6px 12px;
   background-color: #009688;
+  color: white;
+  border: none;
+  margin-right: 5px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-input:checked + .slider:before {
-  transform: translateX(24px);
+#calendar-filters button:hover {
+  background-color: #00796b;
 }
+
+#calendar-filters button.active {
+  background-color: #004d40;
+}
+
   </style>
 {% endblock extracss %}
 
@@ -86,14 +113,14 @@ input:checked + .slider:before {
       </div>
 
       <div class="col-md-9">
-        <div class="d-flex justify-content-end align-items-center mb-2" style="margin-right: 15px;">
-            <label class="mr-2 mb-0">În Așteptare</label>
-            <label class="switch mb-0 mr-2">
-              <input type="checkbox" id="toggleStatus">
-              <span class="slider round"></span>
-            </label>
-            <label class="mb-0">Planificate</label>
+        <div id="calendar-filters" class="fc-header-toolbar mb-3">
+            <div class="fc-button-group">
+              <button id="btnAll" class="fc-button fc-button-primary" type="button">Toate</button>
+              <button id="btnPlanned" class="fc-button fc-button-primary" type="button">Planificate</button>
+              <button id="btnPending" class="fc-button fc-button-primary" type="button">În Așteptare</button>
+            </div>
           </div>
+          
         <div id="calendar"></div>
       </div>
 
@@ -166,23 +193,11 @@ input:checked + .slider:before {
 {% block extrascripts %}
 <script src="{% static 'calender/main.js' %}"></script>
 <script>
-  function converterDataParaDjangoFormat(data) {
-    const dataJS = new Date(data);
-    const year = dataJS.getFullYear();
-    const month = (dataJS.getMonth() + 1).toString().padStart(2, '0');
-    const day = dataJS.getDate().toString().padStart(2, '0');
-    const hour = dataJS.getHours().toString().padStart(2, '0');
-    const minute = dataJS.getMinutes().toString().padStart(2, '0');
-    const second = dataJS.getSeconds().toString().padStart(2, '0');
-    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-  }
-
   document.addEventListener('DOMContentLoaded', function () {
-    var calendarEl = document.getElementById('calendar');
-    var today = new Date();
-    var allEvents = {{ events|safe }};
-
-    var calendar = new FullCalendar.Calendar(calendarEl, {
+    const calendarEl = document.getElementById('calendar');
+    const today = new Date();
+    const allEventsRaw = {{ events|safe }};
+    const calendar = new FullCalendar.Calendar(calendarEl, {
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',
@@ -193,10 +208,12 @@ input:checked + .slider:before {
       navLinks: true,
       selectable: true,
       selectMirror: true,
+      editable: true,
+      dayMaxEvents: true,
+      events: mapEvents(allEventsRaw),
       select: function (arg) {
-        var modal = document.getElementById('eventModal');
-        modal.style.display = 'block';
         document.getElementById('id_data_interventie').value = arg.startStr;
+        document.getElementById('eventModal').style.display = 'block';
         calendar.unselect();
       },
       eventClick: function (arg) {
@@ -213,35 +230,39 @@ input:checked + .slider:before {
         document.getElementById("add-to-next-day").setAttribute("data-event-id-day", arg.event.id);
 
         document.getElementById('detailModal').style.display = 'block';
-      },
-      editable: true,
-      dayMaxEvents: true,
-      events: allEvents
+      }
     });
 
     calendar.render();
 
-    document.getElementById('toggleStatus').addEventListener('change', function () {
-      let filtered = allEvents.filter(e =>
-        this.checked ? e.status === "Aprobat" : e.status === "În Așteptare"
-      );
+    function mapEvents(events) {
+      return events.map(e => ({
+        ...e,
+        classNames: [e.status === "Aprobat" ? "aprobat" : "in-asteptare"]
+      }));
+    }
+
+    document.getElementById('btnAll').onclick = () => {
       calendar.removeAllEvents();
-      calendar.addEventSource(filtered);
-    });
+      calendar.addEventSource(mapEvents(allEventsRaw));
+    };
+    document.getElementById('btnPlanned').onclick = () => {
+      const filtered = allEventsRaw.filter(e => e.status === "Aprobat");
+      calendar.removeAllEvents();
+      calendar.addEventSource(mapEvents(filtered));
+    };
+    document.getElementById('btnPending').onclick = () => {
+      const filtered = allEventsRaw.filter(e => e.status === "În Așteptare");
+      calendar.removeAllEvents();
+      calendar.addEventSource(mapEvents(filtered));
+    };
   });
 
   document.getElementById('modalClose1').onclick =
-    document.getElementById('modalClose2').onclick =
+  document.getElementById('modalClose2').onclick =
     () => document.getElementById('eventModal').style.display = 'none';
   document.getElementById('modalDetailClose').onclick =
     () => document.getElementById('detailModal').style.display = 'none';
-
-  function formatDateTime(dateTime) {
-    return new Date(dateTime).toLocaleString('en-US', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-  }
 
   document.getElementById('delete-event-button').addEventListener('click', function () {
     const id = this.getAttribute('data-event-id');
