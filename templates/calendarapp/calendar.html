@@ -27,21 +27,21 @@
 }
 
 .btn-group-status .btn-outline-warning:hover {
-  background-color: #f97316;
+  background-color: #b3aaa4;
   color: #fff;
   border-color: #f97316;
 }
 
 /* Evenimente Calendar */
 .fc-event.aprobat {
-  background-color: #3b82f6 !important;
-  border-color: #3b82f6 !important;
+  background-color:#009688!important;
+  border-color: #009688 !important;
   color: #fff !important;
 }
 
 .fc-event.in-asteptare {
-  background-color: #f97316 !important;
-  border-color: #f97316 !important;
+  background-color: #6f6f6f !important;
+  border-color: #6f6f6f !important;
   color: #fff !important;
 }
 
@@ -73,6 +73,63 @@
 #calendar-filters button.active {
   background-color: #004d40;
 }
+/* Dropdown Style Upgrade */
+#filterDropdown {
+  display: none;
+  position: absolute;
+  top: 40px;
+  left: 0;
+  background-color: #009688;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.3s ease-in-out;
+  min-width: 160px;
+  z-index: 1000;
+}
+
+#filterDropdown .fc-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: none;
+  background-color: transparent;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#filterDropdown .fc-button:hover {
+  background-color: #00796b;
+  color: white;
+}
+
+#filterDropdown .fc-button:last-child {
+  border-bottom: none;
+}
+
+/* Icon button hover effect */
+#filterToggle {
+  border: 2px solid #00796b;
+  background-color: #009688;
+  color: white;
+  padding: 8px 12px;
+  font-size: 1rem;
+  border-radius: 4px;
+}
+
+#filterToggle:hover {
+  background-color: #00796b;
+  transition: background-color 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 
   </style>
 {% endblock extracss %}
@@ -113,13 +170,17 @@
       </div>
 
       <div class="col-md-9">
-        <div id="calendar-filters" class="fc-header-toolbar mb-3">
-            <div class="fc-button-group">
-              <button id="btnAll" class="fc-button fc-button-primary" type="button">Toate</button>
-              <button id="btnPlanned" class="fc-button fc-button-primary" type="button">Planificate</button>
-              <button id="btnPending" class="fc-button fc-button-primary" type="button">În Așteptare</button>
+        <div id="calendar-filters" class="dropdown" style="position: relative; display: inline-block; margin-bottom: 15px;">
+            <button class="fc-button fc-button-primary" id="filterToggle">
+              <i class="fa fa-eye" aria-hidden="true"></i>
+            </button>
+            <div id="filterDropdown" class="fc-button-group">
+                <button id="btnAll" class="fc-button fc-button-primary dropdown-filter" data-filter="all">Toate</button>
+                <button id="btnPlanned" class="fc-button fc-button-primary dropdown-filter" data-filter="approved">Planificate</button>
+                <button id="btnPending" class="fc-button fc-button-primary dropdown-filter" data-filter="pending">În Așteptare</button>
             </div>
           </div>
+          
           
         <div id="calendar"></div>
       </div>
@@ -193,11 +254,12 @@
 {% block extrascripts %}
 <script src="{% static 'calender/main.js' %}"></script>
 <script>
+
   document.addEventListener('DOMContentLoaded', function () {
     const calendarEl = document.getElementById('calendar');
     const today = new Date();
     const allEventsRaw = {{ events|safe }};
-    const calendar = new FullCalendar.Calendar(calendarEl, {
+   const  calendar = new FullCalendar.Calendar(calendarEl, {
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',
@@ -299,5 +361,43 @@
       }).fail(() => alert('Error!'));
     }
   });
+
+  const toggle = document.getElementById("filterToggle");
+const dropdown = document.getElementById("filterDropdown");
+
+toggle.addEventListener("click", () => {
+  dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
+});
+
+document.addEventListener("click", function (event) {
+  if (!toggle.contains(event.target) && !dropdown.contains(event.target)) {
+    dropdown.style.display = "none";
+  }
+});
+
+const filterBtns = document.querySelectorAll(".dropdown-filter");
+filterBtns.forEach(btn => {
+  btn.addEventListener("click", function () {
+    dropdown.style.display = "none";
+    document.querySelectorAll('.dropdown-filter').forEach(b => b.classList.remove("fc-button-active"));
+    btn.classList.add("fc-button-active");
+
+    const filterType = btn.getAttribute("data-filter");
+
+    const allEventsRaw = {{ events|safe }};
+    const calendar = FullCalendar.getCalendar(); // if saved in global
+    calendar.removeAllEvents();
+
+    if (filterType === "all") {
+      calendar.addEventSource(mapEvents(allEventsRaw));
+    } else if (filterType === "approved") {
+      calendar.addEventSource(mapEvents(allEventsRaw.filter(e => e.status === "Aprobat")));
+    } else if (filterType === "pending") {
+      calendar.addEventSource(mapEvents(allEventsRaw.filter(e => e.status === "În Așteptare")));
+    }
+  });
+});
+
 </script>
 {% endblock extrascripts %}
+=
