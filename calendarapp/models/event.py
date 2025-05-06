@@ -99,3 +99,18 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notificare pentru {self.user.username}: {self.message[:20]}"
+
+from accounts.models import User  # asigură-te că există deja
+
+class Pacient(models.Model):
+    nume_complet = models.CharField("Nume complet", max_length=200)
+    cnp = models.CharField("CNP", max_length=13, unique=True)
+    data_nasterii = models.DateField("Data nașterii")
+    sex = models.CharField("Sex", max_length=1, choices=[("M", "Masculin"), ("F", "Feminin")])
+    telefon = models.CharField("Telefon", max_length=20, blank=True, null=True)
+    adresa = models.TextField("Adresă", blank=True, null=True)
+    istoric_medical = models.TextField("Istoric medical", blank=True, null=True)
+    chirurg = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pacientii")
+
+    def __str__(self):
+        return f"{self.nume_complet} ({self.cnp})"

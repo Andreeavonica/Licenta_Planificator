@@ -1,0 +1,127 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% block title %}Pacienții mei{% endblock %}
+
+{% block content %}
+<div class="tile">
+  <h3 class="tile-title">Pacienții Mei</h3>
+
+  <button class="btn btn-primary mb-3" data-toggle="modal" data-target="#addPacientModal">
+    Adaugă pacient
+  </button>
+
+  <div class="table-responsive">
+    <table class="table table-hover table-bordered dataTable no-footer" id="sampleTable">
+      <thead>
+        <tr>
+          <th>Nume</th>
+          <th>CNP</th>
+          <th>Data nașterii</th>
+          <th>Sex</th>
+          <th>Telefon</th>
+          <th>Adresă</th>
+          <th>Istoric medical</th>
+
+        </tr>
+      </thead>
+      <tbody>
+        {% for pacient in pacienti %}
+        <tr>
+          <td>{{ pacient.nume_complet }}</td>
+          <td>{{ pacient.cnp }}</td>
+          <td>{{ pacient.data_nasterii }}</td>
+          <td>{{ pacient.get_sex_display }}</td>
+          <td>{{ pacient.telefon }}</td>
+          <td>{{ pacient.adresa }}</td>
+          <td>{{ pacient.istoric_medical }}</td>
+
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6">Nu ai pacienți înregistrați.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Bootstrap pentru adăugare pacient -->
+<div class="modal fade" id="addPacientModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form id="pacient-form" method="post">
+        <div class="modal-header">
+          <h5 class="modal-title">Adaugă pacient</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Închide">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          {% csrf_token %}
+          {{ form.as_p }}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Renunță</button>
+          <button type="submit" class="btn btn-success">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extrascripts %}
+<!-- DataTables pentru sortare, căutare, paginare -->
+<script type="text/javascript" src="{% static 'js/plugins/jquery.dataTables.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/plugins/dataTables.bootstrap.min.js' %}"></script>
+<script>
+  // Inițializează DataTables
+  const table = $('#sampleTable').DataTable();
+
+  // Focus pe primul câmp când se deschide modalul
+  $('#addPacientModal').on('shown.bs.modal', function () {
+    $('#id_nume_complet').trigger('focus');
+  });
+
+  // Salvare AJAX pacient
+  document.getElementById("pacient-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+
+    fetch("{% url 'calendarapp:ajax_adauga_pacient' %}", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": form.querySelector("[name='csrfmiddlewaretoken']").value,
+      },
+      body: formData,
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.success) {
+        $("#addPacientModal").modal("hide");
+
+        // Adaugă rând în DataTables
+        table.row.add([
+          data.pacient.nume,
+          data.pacient.cnp,
+          data.pacient.nastere,
+          data.pacient.sex,
+          data.pacient.telefon,
+          data.pacient.adresa,
+          data.pacient.istoric || ""
+          ]).draw();
+
+        form.reset();
+      } else {
+        alert("Eroare la salvare. Verifică câmpurile.");
+      }
+    })
+    .catch((err) => {
+      console.error("Eroare AJAX:", err);
+    });
+  });
+</script>
+{% endblock %}

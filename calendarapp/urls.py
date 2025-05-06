@@ -3,6 +3,8 @@ from django.urls import path
 from . import views
 from .views import other_views
 from calendarapp.views.other_views import mark_all_notifications_read
+from calendarapp.views.other_views import pacienti_list, ajax_adauga_pacient
+
 
 
 
@@ -52,6 +54,10 @@ urlpatterns = [
     path("confirm-schedule/", other_views.confirm_schedule, name="confirm_schedule"),
     path("move-surgery/", other_views.move_surgery, name="move_surgery"),
     path("notifications/mark_all_read/", mark_all_notifications_read, name="mark_all_notifications_read"),
+    path("pacienti/", pacienti_list, name="pacienti_list"),
+    path("pacienti/adauga/ajax/", ajax_adauga_pacient, name="ajax_adauga_pacient"),
+
+
 
 
 

@@ -341,3 +341,43 @@ from calendarapp.models.event import Notification
 def mark_all_notifications_read(request):
     request.user.notifications.filter(is_read=False).update(is_read=True)
     return redirect("calendarapp:calendar")
+
+
+from calendarapp.models.event import Pacient
+from calendarapp.forms import PacientForm
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def pacienti_list(request):
+    pacienti = Pacient.objects.filter(chirurg=request.user)
+    form = PacientForm()
+    return render(request, "calendarapp/pacienti_list.html", {
+        "pacienti": pacienti,
+        "form": form
+    })
+
+
+
+@csrf_exempt
+@login_required
+def ajax_adauga_pacient(request):
+    if request.method == "POST":
+        form = PacientForm(request.POST)
+        if form.is_valid():
+            pacient = form.save(commit=False)
+            pacient.chirurg = request.user
+            pacient.save()
+            return JsonResponse({"success": True, "pacient": {
+                "nume": pacient.nume_complet,
+                "cnp": pacient.cnp,
+                "nastere": pacient.data_nasterii.strftime("%Y-%m-%d"),
+                "sex": pacient.get_sex_display(),
+                "telefon": pacient.telefon or "",
+                "adresa": pacient.adresa or "",
+                "istoric": pacient.istoric_medical or ""
+
+            }})
+        else:
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+
+    return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
