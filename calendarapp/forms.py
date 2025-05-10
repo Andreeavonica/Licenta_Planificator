@@ -17,34 +17,52 @@ class PacientForm(forms.ModelForm):
             "istoric_medical": "Istoric medical",
         }
 
-class EventForm(ModelForm):
+from django import forms
+from django.forms import ModelForm
+from calendarapp.models.event import Event, Pacient
+
+from django import forms
+from calendarapp.models.event import Event, Pacient
+
+class EventForm(forms.ModelForm):
+    pacient_selectat = forms.ModelChoiceField(
+        queryset=Pacient.objects.none(),
+        required=False,
+        label="Alege pacientul",
+        widget=forms.Select(attrs={"class": "form-control"})
+    )
+
     class Meta:
         model = Event
-        fields = ["nume_pacient", "tip_operatie", "constrangeri_speciale", "timp_estimare", "data_interventie", "observatii"]
-        
-        widgets = {
-            "nume_pacient": forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "Introduceți numele pacientului"}
-            ),
-             "tip_operatie": forms.Select(  # ❗️Aici NU mai pui choices manual
-                attrs={"class": "form-control"}
-            ),
-            "constrangeri_speciale": forms.Textarea(
-                attrs={"class": "form-control", "placeholder": "Introduceți eventuale constrângeri speciale"}
-            ),
-            "timp_estimare": forms.NumberInput(
-                attrs={"class": "form-control", "placeholder": "Introduceți timpul estimat în minute"}
-            ),
-            
-            "observatii": forms.Textarea(
-                attrs={"class": "form-control", "placeholder": "Introduceți observații suplimentare"}
-            ),
-        }
+        fields = [
+            "nume_pacient",                  # completat automat
+            "pacient_selectat",              # doar pentru selecție
+            "tip_operatie",
+            "constrangeri_speciale",
+            "timp_estimare",
+            "data_interventie",
+            "observatii",
+        ]
         exclude = ["user"]
 
+        widgets = {
+            "nume_pacient": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
+            "tip_operatie": forms.Select(attrs={"class": "form-control"}),
+            "constrangeri_speciale": forms.Textarea(attrs={"class": "form-control"}),
+            "timp_estimare": forms.NumberInput(attrs={"class": "form-control"}),
+            "data_interventie": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
+            "observatii": forms.Textarea(attrs={"class": "form-control"}),
+        }
+
     def __init__(self, *args, **kwargs):
-        super(EventForm, self).__init__(*args, **kwargs)
+        user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
         self.fields["data_interventie"].input_formats = ("%Y-%m-%dT%H:%M",)
+
+        if user:
+            self.fields["pacient_selectat"].queryset = Pacient.objects.filter(chirurg=user)
+
+
 
 
 

@@ -199,8 +199,15 @@
                 <label>Data Intervenției:</label>{{ form.data_interventie }}
               </div>
               <div class="form-group">
-                <label>Nume Pacient:</label>{{ form.nume_pacient }}
+                <label>Selectează pacient:</label>
+                {{ form.pacient_selectat }}
               </div>
+              
+              <div class="form-group">
+                <label>Nume pacient:</label>
+                {{ form.nume_pacient }}
+              </div>
+                   
               <div class="form-group">
                 <label>Tip Operație:</label>{{ form.tip_operatie }}
               </div>
@@ -398,6 +405,29 @@ filterBtns.forEach(btn => {
   });
 });
 
+document.addEventListener("DOMContentLoaded", function () {
+    const selectPacient = document.getElementById("id_pacient_selectat");
+    const inputNume = document.getElementById("id_nume_pacient");
+
+    if (selectPacient && inputNume) {
+      selectPacient.addEventListener("change", function () {
+        const selectedOption = selectPacient.options[selectPacient.selectedIndex];
+        inputNume.value = selectedOption.text;
+      });
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+  const selectPacient = document.getElementById("id_pacient_selectat");
+  const inputNume = document.getElementById("id_nume_pacient");
+
+  if (selectPacient && inputNume) {
+    selectPacient.addEventListener("change", function () {
+      const selectedOption = selectPacient.options[selectPacient.selectedIndex];
+      inputNume.value = selectedOption.text;
+    });
+  }
+});
 </script>
 {% endblock extrascripts %}
 =

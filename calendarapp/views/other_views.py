@@ -133,7 +133,7 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
     form_class = EventForm
 
     def get(self, request, *args, **kwargs):
-        forms = self.form_class()
+        forms = self.form_class(user=request.user)
         status_filter = request.GET.get("status", "all")  # Preluăm filtrul din URL
 
         # Obținem toate evenimentele în funcție de status
@@ -202,14 +202,20 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
 
 
     def post(self, request, *args, **kwargs):
-        forms = self.form_class(request.POST)
+        forms = self.form_class(request.POST, user=request.user)
         if forms.is_valid():
             form = forms.save(commit=False)
             form.user = request.user
+
+            pacient = forms.cleaned_data.get("pacient_selectat")
+            if pacient:
+                form.nume_pacient = pacient.nume_complet
+
+
             form.save()
             return redirect("calendarapp:calendar")
-        context = {"form": forms}
-        return render(request, self.template_name, context)
+
+
 
 
 def delete_event(request, event_id):
