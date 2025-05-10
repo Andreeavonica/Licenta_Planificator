@@ -151,12 +151,23 @@
                         </li>
                     </ul>
                 </li>
-                <li>
-                    <a class="app-menu__item" href="{% url 'calendarapp:pacienti_list' %}">
-                      <i class="app-menu__icon fa fa-users"></i>
-                      <span class="app-menu__label">Pacienții Mei</span>
-                    </a>
-                  </li>
+
+                <li class="treeview">
+                    <a class="app-menu__item" href="" data-toggle="treeview"><i class="app-menu__icon fa fa-users"></i><span class="app-menu__label">Pacienții Mei</span><i class="treeview-indicator fa fa-angle-right"></i></a>
+                    <ul class="treeview-menu">
+                        <li>
+                            <a class="treeview-item" href="{% url 'calendarapp:pacienti_neprogramati' %}"><i class="icon fa fa-circle-o"></i> Neprogramati</a>
+                        </li>
+                        <li>
+                            <a class="treeview-item" href="{% url 'calendarapp:pacienti_in_asteptare' %}"><i class="icon fa fa-circle-o"></i> In asteptare</a>
+                        </li>
+                        <li>
+                            <a class="treeview-item" href="{% url 'calendarapp:pacienti_programati' %}"><i class="icon fa fa-circle-o"></i> Programati</a>
+                        </li>
+    
+                    </ul>
+                </li>
+                
                   
                 <li>
                     <a class="app-menu__item" href="{% url 'calendarapp:orar' %}">

@@ -360,14 +360,7 @@ from calendarapp.models.event import Pacient
 from calendarapp.forms import PacientForm
 from django.contrib.auth.decorators import login_required
 
-@login_required
-def pacienti_list(request):
-    pacienti = Pacient.objects.filter(chirurg=request.user)
-    form = PacientForm()
-    return render(request, "calendarapp/pacienti_list.html", {
-        "pacienti": pacienti,
-        "form": form
-    })
+
 
 
 
@@ -398,3 +391,45 @@ def ajax_adauga_pacient(request):
         else:
             return JsonResponse({"success": False, "errors": form.errors})
     return JsonResponse({"success": False, "message": "Method not allowed"}, status=405)
+@login_required
+def pacienti_in_asteptare(request):
+    events = Event.objects.filter(user=request.user, status="in_asteptare")
+    enriched = []
+    for e in events:
+        pacient = Pacient.objects.filter(nume_complet=e.nume_pacient, chirurg=request.user).first()
+        enriched.append({
+            "event": e,
+            "pacient": pacient
+        })
+    return render(request, "calendarapp/pacienti_list.html", {
+        "pacienti": enriched,
+        "tip": "asteptare"
+    })
+
+@login_required
+def pacienti_programati(request):
+    events = Event.objects.filter(user=request.user, status="aprobat")
+    enriched = []
+    for e in events:
+        pacient = Pacient.objects.filter(nume_complet=e.nume_pacient, chirurg=request.user).first()
+        enriched.append({
+            "event": e,
+            "pacient": pacient
+        })
+    return render(request, "calendarapp/pacienti_list.html", {
+        "pacienti": enriched,
+        "tip": "programati"
+    })
+
+from calendarapp.models.event import Pacient
+from calendarapp.forms import PacientForm
+
+def pacienti_neprogramati(request):
+    pacienti = Pacient.objects.filter(chirurg=request.user, status="neprogramat")
+    form = PacientForm()
+
+    return render(request, "calendarapp/pacienti_list.html", {
+        "pacienti": pacienti,
+        "form": form,
+        "tip": "neprogramati"
+    })

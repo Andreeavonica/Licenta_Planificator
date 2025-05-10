@@ -1,14 +1,26 @@
 {% extends 'base/base.html' %}
 {% load static %}
-{% block title %}Pacienții mei{% endblock %}
+{% block title %}
+  {% if tip == "asteptare" %} Pacienți în așteptare
+  {% elif tip == "programati" %} Pacienți programați
+  {% else %} Pacienții Mei
+  {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="tile">
-  <h3 class="tile-title">Pacienții Mei</h3>
+  <h3 class="tile-title">
+    {% if tip == "asteptare" %} Pacienți în așteptare
+    {% elif tip == "programati" %} Pacienți programați
+    {% else %} Pacienții Mei
+    {% endif %}
+  </h3>
 
-  <button class="btn btn-primary mb-3" data-toggle="modal" data-target="#addPacientModal">
-    Adaugă pacient
-  </button>
+  {% if tip == "neprogramati" %}
+    <button class="btn btn-primary mb-3" data-toggle="modal" data-target="#addPacientModal">
+      Adaugă pacient
+    </button>
+  {% endif %}
 
   <div class="table-responsive">
     <table class="table table-hover table-bordered dataTable no-footer" id="sampleTable">
@@ -16,40 +28,82 @@
         <tr>
           <th>Nume</th>
           <th>CNP</th>
-          <th>Data nașterii</th>
           <th>Sex</th>
           <th>Telefon</th>
           <th>Adresă</th>
+          <th>Data nașterii</th>
           <th>Istoric medical</th>
+
+          {% if tip == "asteptare" or tip == "programati" %}
+            <th>Tip operație</th>
+            <th>Data intervenție</th>
+            <th>Timp estimat</th>
+            <th>Constrângeri</th>
+            <th>Observații</th>
+          {% endif %}
+
+          {% if tip == "programati" %}
+            <th>Sală</th>
+            <th>Ora început</th>
+            <th>Ora sfârșit</th>
+            <th>Durată</th>
+          {% endif %}
+
           <th>Status</th>
-
-
         </tr>
       </thead>
       <tbody>
-        {% for pacient in pacienti %}
-        <tr>
-          <td>{{ pacient.nume_complet }}</td>
-          <td>{{ pacient.cnp }}</td>
-          <td>{{ pacient.data_nasterii }}</td>
-          <td>{{ pacient.get_sex_display }}</td>
-          <td>{{ pacient.telefon }}</td>
-          <td>{{ pacient.adresa }}</td>
-          <td>{{ pacient.istoric_medical }}</td>
-          <td>{{ pacient.get_status_display }}</td>
+        {% for p in pacienti %}
+          {% if tip == "neprogramati" %}
+            <tr>
+              <td>{{ p.nume_complet }}</td>
+              <td>{{ p.cnp }}</td>
+              <td>{{ p.get_sex_display }}</td>
+              <td>{{ p.telefon }}</td>
+              <td>{{ p.adresa }}</td>
+              <td>{{ p.data_nasterii }}</td>
+              <td>{{ p.istoric_medical }}</td>
+              <td>{{ p.get_status_display }}</td>
+            </tr>
+          {% else %}
+            {% with e=p.event pacient=p.pacient %}
+              <tr>
+                <td>{{ pacient.nume_complet }}</td>
+                <td>{{ pacient.cnp }}</td>
+                <td>{{ pacient.get_sex_display }}</td>
+                <td>{{ pacient.telefon }}</td>
+                <td>{{ pacient.adresa }}</td>
+                <td>{{ pacient.data_nasterii }}</td>
+                <td>{{ pacient.istoric_medical }}</td>
 
+                <td>{{ e.tip_operatie }}</td>
+                <td>{{ e.data_interventie|date:"j F Y" }}</td>
+                <td>{{ e.timp_estimare }} min</td>
+                <td>{{ e.constrangeri_speciale }}</td>
+                <td>{{ e.observatii }}</td>
 
-        </tr>
+                {% if tip == "programati" %}
+                  <td>{{ e.sala_alocata }}</td>
+                  <td>{{ e.ora_inceput }}</td>
+                  <td>{{ e.ora_sfarsit }}</td>
+                  <td>{{ e.durata }} min</td>
+                {% endif %}
+
+                <td>{{ e.get_status_display }}</td>
+              </tr>
+            {% endwith %}
+          {% endif %}
         {% empty %}
-        <tr>
-          <td colspan="6">Nu ai pacienți înregistrați.</td>
-        </tr>
+          <tr>
+            <td colspan="16">Nu există pacienți de afișat.</td>
+          </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
+{% if tip == "neprogramati" %}
 <!-- Modal Bootstrap pentru adăugare pacient -->
 <div class="modal fade" id="addPacientModal" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
@@ -73,7 +127,8 @@
     </div>
   </div>
 </div>
-{% endblock content %}
+{% endif %}
+{% endblock %}
 
 {% block extrascripts %}
 <!-- DataTables pentru sortare, căutare, paginare -->

@@ -4,8 +4,7 @@ from django.urls import path
 from . import views
 from .views import other_views
 from calendarapp.views.other_views import mark_all_notifications_read
-from calendarapp.views.other_views import pacienti_list, ajax_adauga_pacient
-
+from calendarapp.views.other_views import ajax_adauga_pacient, pacienti_in_asteptare, pacienti_programati,pacienti_neprogramati
 
 
 
@@ -55,8 +54,14 @@ urlpatterns = [
     path("confirm-schedule/", other_views.confirm_schedule, name="confirm_schedule"),
     path("move-surgery/", other_views.move_surgery, name="move_surgery"),
     path("notifications/mark_all_read/", mark_all_notifications_read, name="mark_all_notifications_read"),
-    path("pacienti/", pacienti_list, name="pacienti_list"),
     path("pacienti/adauga/ajax/", ajax_adauga_pacient, name="ajax_adauga_pacient"),
+    path("pacienti/in-asteptare/", pacienti_in_asteptare, name="pacienti_in_asteptare"),
+    path("pacienti/programati/", pacienti_programati, name="pacienti_programati"),
+    path("pacienti/neprogramati/", pacienti_neprogramati, name="pacienti_neprogramati"),
+
+
+
+
 
 
 
