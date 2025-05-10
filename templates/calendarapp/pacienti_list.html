@@ -21,6 +21,8 @@
           <th>Telefon</th>
           <th>Adresă</th>
           <th>Istoric medical</th>
+          <th>Status</th>
+
 
         </tr>
       </thead>
@@ -34,6 +36,8 @@
           <td>{{ pacient.telefon }}</td>
           <td>{{ pacient.adresa }}</td>
           <td>{{ pacient.istoric_medical }}</td>
+          <td>{{ pacient.get_status_display }}</td>
+
 
         </tr>
         {% empty %}
@@ -111,7 +115,9 @@
           data.pacient.sex,
           data.pacient.telefon,
           data.pacient.adresa,
-          data.pacient.istoric || ""
+          data.pacient.istoric || "",
+          data.pacient.status_display || "Neprogramat"  // 🔽 adaugă statusul
+
           ]).draw();
 
         form.reset();

@@ -103,6 +103,12 @@ class Notification(models.Model):
 from accounts.models import User  # asigură-te că există deja
 
 class Pacient(models.Model):
+
+    STATUS_CHOICES = [
+        ("neprogramat", "Neprogramat"),
+        ("in_asteptare", "În așteptare"),
+        ("programat", "Programat"),
+    ]
     nume_complet = models.CharField("Nume complet", max_length=200)
     cnp = models.CharField("CNP", max_length=13, unique=True)
     data_nasterii = models.DateField("Data nașterii")
@@ -111,6 +117,8 @@ class Pacient(models.Model):
     adresa = models.TextField("Adresă", blank=True, null=True)
     istoric_medical = models.TextField("Istoric medical", blank=True, null=True)
     chirurg = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pacientii")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="neprogramat")     
+
 
     def __str__(self):
         return f"{self.nume_complet} ({self.cnp})"

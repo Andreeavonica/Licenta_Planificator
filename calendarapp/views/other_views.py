@@ -210,7 +210,8 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
             pacient = forms.cleaned_data.get("pacient_selectat")
             if pacient:
                 form.nume_pacient = pacient.nume_complet
-
+                pacient.status = "in_asteptare"
+                pacient.save()
 
             form.save()
             return redirect("calendarapp:calendar")
@@ -299,6 +300,12 @@ def confirm_schedule(request):
 
                     event.status = "aprobat"
                     event.save()
+                    try:
+                        pacient = Pacient.objects.get(nume_complet=event.nume_pacient, chirurg=event.user)
+                        pacient.status = "programat"
+                        pacient.save()
+                    except Pacient.DoesNotExist:
+                        pass
 
                 except Event.DoesNotExist:
                     continue
@@ -372,18 +379,22 @@ def ajax_adauga_pacient(request):
         if form.is_valid():
             pacient = form.save(commit=False)
             pacient.chirurg = request.user
+            pacient.status = "neprogramat"  # 🔁 Setăm statusul automat
             pacient.save()
-            return JsonResponse({"success": True, "pacient": {
-                "nume": pacient.nume_complet,
-                "cnp": pacient.cnp,
-                "nastere": pacient.data_nasterii.strftime("%Y-%m-%d"),
-                "sex": pacient.get_sex_display(),
-                "telefon": pacient.telefon or "",
-                "adresa": pacient.adresa or "",
-                "istoric": pacient.istoric_medical or ""
+            return JsonResponse({
+                "success": True,
+                "pacient": {
+                    "nume": pacient.nume_complet,
+                    "cnp": pacient.cnp,
+                    "nastere": pacient.data_nasterii.strftime("%Y-%m-%d"),
+                    "sex": pacient.get_sex_display(),
+                    "telefon": pacient.telefon,
+                    "adresa": pacient.adresa,
+                    "istoric": pacient.istoric_medical,
+                    "status_display": pacient.get_status_display(),
 
-            }})
+                }
+            })
         else:
-            return JsonResponse({"success": False, "errors": form.errors}, status=400)
-
-    return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
+            return JsonResponse({"success": False, "errors": form.errors})
+    return JsonResponse({"success": False, "message": "Method not allowed"}, status=405)

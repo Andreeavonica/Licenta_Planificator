@@ -60,7 +60,10 @@ class EventForm(forms.ModelForm):
         self.fields["data_interventie"].input_formats = ("%Y-%m-%dT%H:%M",)
 
         if user:
-            self.fields["pacient_selectat"].queryset = Pacient.objects.filter(chirurg=user)
+            self.fields["pacient_selectat"].queryset = Pacient.objects.filter(
+                chirurg=user, status="neprogramat"
+    )
+
 
 
 
@@ -75,7 +78,7 @@ class AddMemberForm(forms.ModelForm):
 class PacientForm(forms.ModelForm):
     class Meta:
         model = Pacient
-        exclude = ["chirurg"]
+        exclude = ["chirurg", "status"]  # ⛔ scoatem din formular
         labels = {
             "nume_complet": "Nume complet",
             "cnp": "CNP",
