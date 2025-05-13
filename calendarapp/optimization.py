@@ -353,4 +353,4 @@ if __name__ == "__main__":
         for event in room["schedule"]:
             print(f"  {event['start_time']}-{event['end_time']}: {event['type']} "
                   f"(Patient: {event['patient']}, Surgeon: {event['surgeon']}, "
-                  f"Clean: {event['clean_time']}min)")
+                  f"Clean: {event['clean_time']}min)") 
