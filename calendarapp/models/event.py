@@ -77,6 +77,17 @@ class Event(EventAbstract):
     ora_sfarsit = models.TimeField(blank=True, null=True)
     durata = models.IntegerField(blank=True, null=True)
 
+    asistenta_alocata = models.ForeignKey(
+    User,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="interventii_asistate",
+    limit_choices_to={"role": "assistant"},
+    verbose_name="Asistentă alocată"
+)
+
+
     objects = EventManager()
 
     def __str__(self):

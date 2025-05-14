@@ -25,5 +25,5 @@ class SignInView(View):
                     return redirect("calendarapp:calendar")  # Dashboard pentru manageri
                 elif user.role == "surgeon":
                    return redirect("calendarapp:calendar") # Dashboard pentru chirurgi
-                return redirect("patient_dashboard")  # Dashboard pentru pacienți
+                return redirect("calendarapp:calendar")  # Dashboard pentru pacienți
         return render(request, self.template_name, {"form": form})

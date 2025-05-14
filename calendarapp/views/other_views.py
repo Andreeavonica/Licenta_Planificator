@@ -136,24 +136,45 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
         forms = self.form_class(user=request.user)
         status_filter = request.GET.get("status", "all")  # Preluăm filtrul din URL
 
-        # Obținem toate evenimentele în funcție de status
-        events = Event.objects.filter(user=request.user, is_active=True, is_deleted=False)
+        # 🔐 Filtrăm operațiile în funcție de rolul utilizatorului
+        if request.user.role == "assistant":
+            events = Event.objects.filter(
+                asistenta_alocata=request.user,
+                is_active=True,
+                is_deleted=False
+            )
+        else:
+            events = Event.objects.filter(
+                user=request.user,
+                is_active=True,
+                is_deleted=False
+            )
+
         if status_filter == "planificat":
             events = events.filter(status="aprobat")
         elif status_filter == "in_asteptare":
             events = events.filter(status="in_asteptare")
 
-        # Filtrăm doar evenimentele aprobate care sunt programate după data curentă
-        events_month = Event.objects.filter(
-            user=request.user,
-            is_active=True,
-            is_deleted=False,
-            status="aprobat",  # Doar evenimente aprobate
-            data_interventie__gte=datetime.now().date()  # Numai cele din viitor
-        ).order_by("data_interventie")
+        # Filtrăm doar evenimentele aprobate programate în viitor (pentru events_month)
+        if request.user.role == "assistant":
+            events_month = Event.objects.filter(
+                asistenta_alocata=request.user,
+                is_active=True,
+                is_deleted=False,
+                status="aprobat",
+                data_interventie__gte=datetime.now().date()
+            ).order_by("data_interventie")
+        else:
+            events_month = Event.objects.filter(
+                user=request.user,
+                is_active=True,
+                is_deleted=False,
+                status="aprobat",
+                data_interventie__gte=datetime.now().date()
+            ).order_by("data_interventie")
 
         event_list = []
-        
+
         for event in events.order_by("ora_inceput"):
             # Formatăm ora ca interval "HH:MM - HH:MM"
             if event.ora_inceput and event.ora_sfarsit:
@@ -173,7 +194,7 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
             event_list.append({
                 "id": event.id,
                 "title": title,
-                "start": f"{event.data_interventie.strftime('%Y-%m-%d')}T00:00:00",  # ora nefolosită în day view
+                "start": f"{event.data_interventie.strftime('%Y-%m-%d')}T00:00:00",
                 "status": event.get_status_display(),
                 "sala_alocata": event.sala_alocata,
                 "tip_operatie": tip_operatie,
@@ -183,19 +204,16 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 "data_interventie": event.data_interventie.isoformat(),
             })
 
-
-
-        print("DEBUG: Events Month", events_month)  # Verificăm în consolă
         notifications = []
         if request.user.is_authenticated:
             notifications = request.user.notifications.filter(is_read=False)[:5]
+
         context = {
             "form": forms,
             "events": event_list,
-            "events_month": events_month,  # Transmitem events_month către calendar.html
+            "events_month": events_month,
             "status_filter": status_filter,
-            "notifications": notifications  # adaugă aici
-
+            "notifications": notifications,
         }
         return render(request, self.template_name, context)
 
@@ -267,6 +285,9 @@ def run_schedule(request):
     
 def schedule_page(request):
     return render(request, "calendarapp/schedule.html")
+
+from accounts.models import User  # asigură-te că ai importat User
+
 @csrf_exempt
 def confirm_schedule(request):
     if request.method == "POST":
@@ -276,30 +297,42 @@ def confirm_schedule(request):
         for room in data.get("room_allocations", []):
             for surgery in room.get("schedule", []):
                 try:
-                    # Căutăm intervenția după nume
                     event = Event.objects.get(id=surgery["id"])
+
                     if event.status == "in_asteptare":
                         Notification.objects.create(
                             user=event.user,
                             message=f"Operația pentru pacientul {event.nume_pacient} a fost aprobată și programată."
-                        )   
-                    # Convertim ora_start / ora_sfarsit
+                        )
+
+                    # Timpul
                     start_parts = surgery["start_time"].split(":")
                     end_parts = surgery["end_time"].split(":")
                     ora_inceput = time(hour=int(start_parts[0]), minute=int(start_parts[1]))
                     ora_sfarsit = time(hour=int(end_parts[0]), minute=int(end_parts[1]))
 
-                    # Calculăm durata în minute
-                    durata = (int(end_parts[0]) * 60 + int(end_parts[1])) - (int(start_parts[0]) * 60 + int(start_parts[1]))
+                    durata = (
+                        int(end_parts[0]) * 60 + int(end_parts[1])
+                        - int(start_parts[0]) * 60 - int(start_parts[1])
+                    )
 
-                    # Salvăm în event
+                    # Salvare în event
                     event.ora_inceput = ora_inceput
                     event.ora_sfarsit = ora_sfarsit
                     event.durata = durata
                     event.sala_alocata = room["room"]
-
                     event.status = "aprobat"
+
+                    # 💾 Salvăm asistenta dacă există în payload
+                    nurse_id = surgery.get("nurse_id")
+                    if nurse_id:
+                        asistenta = User.objects.filter(id=nurse_id, role="assistant").first()
+                        if asistenta:
+                            event.asistenta_alocata = asistenta
+
                     event.save()
+
+                    # Update pacient
                     try:
                         pacient = Pacient.objects.get(nume_complet=event.nume_pacient, chirurg=event.user)
                         pacient.status = "programat"
