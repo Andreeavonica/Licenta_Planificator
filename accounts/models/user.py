@@ -49,6 +49,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         ("patient", "Pacient"),
         ("manager", "Manager"),
         ("surgeon", "Chirurg"),
+        ("assistant", "Asistenta"),
+
+
     ]
     first_name = models.CharField(_("Prenume"), max_length=150, default="Necunoscut")
     last_name  = models.CharField(_("Nume"),    max_length=150, default="Necunoscut")
@@ -63,7 +66,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=10,
         choices=ROLE_CHOICES,
         default="patient",
-        help_text="Select user role: Pacient, Manager sau Chirurg"
+        help_text="Select user role: Asistent, Manager sau Chirurg"
     )
     is_staff = models.BooleanField(_("Staff status"), default=False)
     is_active = models.BooleanField(_("Active"), default=True)

@@ -4,6 +4,12 @@ from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from mealpy.evolutionary_based.GA import BaseGA
 from mealpy.utils.problem import FloatVar
+from collections import defaultdict
+from calendarapp.models import Event
+from accounts.models import User
+
+import numpy as np
+
 
 """
 Algoritm de planificare a intervențiilor chirurgicale – versiune optimizată
@@ -66,7 +72,6 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
     (selected_date,),
 )
     surgeries = c.fetchall()
-    conn.close()
 
     room_data = [
         {
@@ -94,7 +99,14 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
         }
         for s in surgeries
     ]
-    return room_data, surgery_data
+    # Fetch nurses from DB (users with role = 'assistant')
+    c = conn.cursor()
+    c.execute("SELECT id, first_name, last_name FROM accounts_user WHERE role = 'assistant' AND is_active = 1")
+    nurse_rows = c.fetchall()
+    nurse_data = [{"id": r[0], "id": r[0], "name": f"{r[1]} {r[2]}"} for r in nurse_rows]
+    conn.close()
+
+    return room_data, surgery_data, nurse_data
 
 # =====================
 # —— HELPERS ——
@@ -133,7 +145,115 @@ def next_slot(start: int, dur: int, intervals: List[Tuple[int, int]]) -> Optiona
 # —— CORE SCHEDULER ——
 # =====================
 
-def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict]) -> tuple[list[dict], float]:
+
+def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], nurse_alloc: List[int], nurses: List[str]) -> tuple[list[dict], float]:
+    n_rooms = len(rooms)
+    room_free: List[int] = [DAY_START] * n_rooms
+    room_dirty: List[bool] = [False] * n_rooms
+    room_schedules: List[list[dict]] = [[] for _ in range(n_rooms)]
+    room_used: List[bool] = [False] * n_rooms
+    surgeon_map: Dict[int, List[Tuple[int, int]]] = {}
+    nurse_map: Dict[int, List[Tuple[int, int]]] = defaultdict(list)
+
+    cost_idle = cost_clean = cost_late = 0
+    dirty_penalty = 0
+    unscheduled = 0
+    bonus_early_long = 0
+    nurse_use_count = [0] * len(nurses)
+
+    for i, idx in enumerate(order):
+        s = surgeries[idx]
+        dur = s["duration"]
+        clean = cleaning_minutes(s)
+        nurse_id = nurse_alloc[idx]
+        chosen_room = chosen_start = None
+        best_room_score = float('inf')
+
+        for r_idx, room in enumerate(rooms):
+            if not is_room_compatible(room, s):
+                continue
+            if room_dirty[r_idx] and s["curata"]:
+                continue
+            start_candidate = room_free[r_idx]
+            start_candidate = next_slot(start_candidate, dur, surgeon_map.get(s["surgeon"], []))
+            if start_candidate is None:
+                continue
+            # Check if nurse is available
+            if next_slot(start_candidate, dur, nurse_map[nurse_id]) != start_candidate:
+                continue
+            if start_candidate + dur + clean > DAY_END:
+                continue
+            room_score = start_candidate
+            if s["is_long"] and start_candidate < DAY_START + 120:
+                room_score += EARLY_LONG_SURGERY_BONUS
+            if room_dirty[r_idx] and s["curata"]:
+                room_score += DIRTY_CLEAN_GAP * 2
+            if room_score < best_room_score:
+                best_room_score = room_score
+                chosen_room, chosen_start = r_idx, start_candidate
+
+        if chosen_room is None:
+            unscheduled += 1
+            continue
+
+        end_time = chosen_start + dur
+        prev_end = DAY_START if not room_schedules[chosen_room] else room_schedules[chosen_room][-1]["_end"]
+        idle_time = max(0, chosen_start - prev_end)
+        cost_idle += idle_time
+        cost_clean += clean
+        cost_late += ((chosen_start - DAY_START) / 60) * (dur / 60) * LATE_PENALTY_COEFF
+
+        if s["is_long"] and chosen_start < DAY_START + 120:
+            bonus_early_long += EARLY_LONG_SURGERY_BONUS
+
+        if not s["curata"]:
+            room_dirty[chosen_room] = True
+            dirty_penalty += DIRTY_CLEAN_GAP
+
+        entry = {
+            "id": s["id"],
+            "type": s["type"],
+            "start_time": f"{chosen_start//60}:{chosen_start%60:02d}",
+            "end_time": f"{end_time//60}:{end_time%60:02d}",
+            "surgeon": s["surgeon"],
+            "patient": s["patient"],
+            "duration": dur,
+            "clean_time": clean,
+            "is_clean": s["curata"],
+            "nurse": nurses[nurse_id]["name"], "nurse_id": nurses[nurse_id]["id"],
+            "_end": end_time,
+        }
+
+        room_schedules[chosen_room].append(entry)
+        room_used[chosen_room] = True
+        room_free[chosen_room] = end_time + clean
+        surgeon_map.setdefault(s["surgeon"], []).append((chosen_start, end_time))
+        surgeon_map[s["surgeon"]].sort()
+        nurse_map[nurse_id].append((chosen_start, end_time))
+        nurse_map[nurse_id].sort()
+        nurse_use_count[nurse_id] += 1
+
+    unused_penalty = sum(UNUSED_ROOM_PENALTY for used in room_used if not used)
+    timetable: list[dict] = []
+    for r_idx, sched in enumerate(room_schedules):
+        for e in sched:
+            e.pop("_end", None)
+        timetable.append({
+            "room": rooms[r_idx]["id"],
+            "schedule": sched,
+            "total_used": (room_free[r_idx] - DAY_START) if room_used[r_idx] else 0
+        })
+    std_nurse = np.std(nurse_use_count)
+    total_cost = (
+        cost_idle + cost_clean + cost_late +
+        dirty_penalty + UNSCHEDULED_PENALTY * unscheduled +
+        unused_penalty + bonus_early_long + std_nurse * 5
+    )
+    
+    
+
+    return timetable, total_cost
+
     """Construiește programul și calculează costul pentru o permutare dată."""
     n_rooms = len(rooms)
 
@@ -258,13 +378,38 @@ def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict]) -
         + unused_penalty
         + bonus_early_long
     )
+    
+    
+
     return timetable, total_cost
 
 # =====================
 # —— GENETIC ALG. ——
 # =====================
 
-def solve_ga(rooms: List[Dict], surgeries: List[Dict], epoch: int = 500, pop: int = 80):
+
+def solve_ga(rooms: List[Dict], surgeries: List[Dict], nurses: List[Dict], epoch: int = 500, pop: int = 80):
+    n = len(surgeries)
+    m = len(nurses)
+    bounds = FloatVar(lb=[0.0] * (2 * n), ub=[1.0] * (2 * n), name="rk")
+
+    def fitness(sol):
+        perm = sorted(range(n), key=lambda i: sol[i])
+        nurse_alloc = [int(sol[i + n] * m) for i in range(n)]
+        _, cost = build_schedule(perm, rooms, surgeries, nurse_alloc, nurses)
+        return cost
+
+    model = BaseGA(epoch=epoch, pop_size=pop, pc=0.9, pm=0.2)
+    problem = {"obj_func": fitness, "bounds": bounds, "minmax": "min"}
+    best = model.solve(problem)
+    best_perm = sorted(range(n), key=lambda i: best.solution[i])
+    nurse_alloc = [int(best.solution[i + n] * m) for i in range(n)]
+    timetable, _ = build_schedule(best_perm, rooms, surgeries, nurse_alloc, nurses)
+    
+    
+
+    return timetable
+
     """Rezolvă programarea prin algoritm genetic."""
     n = len(surgeries)
     bounds = FloatVar(lb=[0.0] * n, ub=[1.0] * n, name="rk")
@@ -279,6 +424,9 @@ def solve_ga(rooms: List[Dict], surgeries: List[Dict], epoch: int = 500, pop: in
     best = model.solve(problem)
     best_perm = sorted(range(n), key=lambda i: best.solution[i])
     timetable, _ = build_schedule(best_perm, rooms, surgeries)
+    
+    
+
     return timetable
 
 # =====================
@@ -294,7 +442,7 @@ def schedule_surgeries(selected_date: str):
       dar NU este folosită de algoritmul genetic.
     """
     # 0. date brute
-    rooms, surgeries = fetch_data(selected_date)
+    rooms, surgeries, nurses = fetch_data(selected_date)
 
     # 1. găsim prima sală mare
     emergency_room = next((r for r in rooms if r["is_large"]), None)
@@ -307,7 +455,7 @@ def schedule_surgeries(selected_date: str):
 
     # 3. rulează optimizarea (doar pe sălile elective)
     if surgeries:
-        timetable = solve_ga(rooms_for_ga, surgeries)
+        timetable = solve_ga(rooms_for_ga, surgeries, nurses)
     else:
         timetable = []
 
@@ -336,6 +484,9 @@ def schedule_surgeries(selected_date: str):
         # ordonează rândurile după numărul sălii, ca să păstrezi afișarea firească
         timetable.sort(key=lambda x: x["room"])
 
+    
+    
+
     return timetable
 
 
@@ -353,4 +504,4 @@ if __name__ == "__main__":
         for event in room["schedule"]:
             print(f"  {event['start_time']}-{event['end_time']}: {event['type']} "
                   f"(Patient: {event['patient']}, Surgeon: {event['surgeon']}, "
-                  f"Clean: {event['clean_time']}min)") 
+                  f"Clean: {event['clean_time']}min)")

@@ -233,10 +233,14 @@ function drawTimeline(data){
           <div style="font-size:14px; font-weight:600;">
             ${ev.start_time}-${ev.end_time} / ${ev.type}
           </div>
-          <div style="font-size:14px;">
+          <div style="font-size:13px;">
             👨‍⚕️ ${ev.surgeon || "-"} / 🧍 ${ev.patient || "-"}
           </div>
+          <div style="font-size:12px; font-style:italic;">
+            🧑‍⚕️ Asistentă: ${ev.nurse || "neatribuită"}
+          </div>
         `;
+
       }
 
       line.appendChild(div);
