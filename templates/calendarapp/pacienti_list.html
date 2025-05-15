@@ -135,54 +135,56 @@
 <script type="text/javascript" src="{% static 'js/plugins/jquery.dataTables.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/plugins/dataTables.bootstrap.min.js' %}"></script>
 <script>
-  // Inițializează DataTables
-  const table = $('#sampleTable').DataTable();
+  let table;
+document.getElementById("pacient-form").addEventListener("submit", function (e) {
+  e.preventDefault();
 
-  // Focus pe primul câmp când se deschide modalul
-  $('#addPacientModal').on('shown.bs.modal', function () {
-    $('#id_nume_complet').trigger('focus');
-  });
+  const form = e.target;
+  const formData = new FormData(form);
 
-  // Salvare AJAX pacient
-  document.getElementById("pacient-form").addEventListener("submit", function (e) {
-    e.preventDefault();
+  fetch("{% url 'calendarapp:ajax_adauga_pacient' %}", {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": form.querySelector("[name='csrfmiddlewaretoken']").value,
+    },
+    body: formData,
+  })
+  .then((res) => res.json())
+  .then((data) => {
+    if (data.success) {
+      $("#addPacientModal").modal("hide");
 
-    const form = e.target;
-    const formData = new FormData(form);
+      // Dacă există rândul gol, elimină-l
+      const emptyRow = document.querySelector("td[colspan]");
+      if (emptyRow) emptyRow.closest("tbody").innerHTML = "";
 
-    fetch("{% url 'calendarapp:ajax_adauga_pacient' %}", {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": form.querySelector("[name='csrfmiddlewaretoken']").value,
-      },
-      body: formData,
-    })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.success) {
-        $("#addPacientModal").modal("hide");
-
-        // Adaugă rând în DataTables
-        table.row.add([
-          data.pacient.nume,
-          data.pacient.cnp,
-          data.pacient.nastere,
-          data.pacient.sex,
-          data.pacient.telefon,
-          data.pacient.adresa,
-          data.pacient.istoric || "",
-          data.pacient.status_display || "Neprogramat"  // 🔽 adaugă statusul
-
-          ]).draw();
-
-        form.reset();
-      } else {
-        alert("Eroare la salvare. Verifică câmpurile.");
+      // Reinițializează tabelul dacă nu a fost inițializat
+      if (!$.fn.DataTable.isDataTable("#sampleTable")) {
+        table = $('#sampleTable').DataTable();
       }
-    })
-    .catch((err) => {
-      console.error("Eroare AJAX:", err);
-    });
+
+      // Adaugă noul pacient în tabel
+      table.row.add([
+        data.pacient.nume,
+        data.pacient.cnp,
+        data.pacient.nastere,
+        data.pacient.sex,
+        data.pacient.telefon,
+        data.pacient.adresa,
+        data.pacient.istoric || "",
+        data.pacient.status_display || "Neprogramat"
+      ]).draw(false);  // false = nu resetează pagina curentă din tabel
+
+      form.reset();
+    } else {
+      alert("Eroare la salvare. Verifică câmpurile.");
+    }
+  })
+  .catch((err) => {
+    console.error("Eroare AJAX:", err);
   });
+});
+
 </script>
+
 {% endblock %}
