@@ -134,54 +134,57 @@
 <!-- DataTables pentru sortare, căutare, paginare -->
 <script type="text/javascript" src="{% static 'js/plugins/jquery.dataTables.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/plugins/dataTables.bootstrap.min.js' %}"></script>
+
 <script>
-  let table;
-document.getElementById("pacient-form").addEventListener("submit", function (e) {
-  e.preventDefault();
+let table = null;
 
-  const form = e.target;
-  const formData = new FormData(form);
+$(document).ready(function () {
+  // Inițializează DataTable și păstrează referința
+  table = $('#sampleTable').DataTable();
 
-  fetch("{% url 'calendarapp:ajax_adauga_pacient' %}", {
-    method: "POST",
-    headers: {
-      "X-CSRFToken": form.querySelector("[name='csrfmiddlewaretoken']").value,
-    },
-    body: formData,
-  })
-  .then((res) => res.json())
-  .then((data) => {
-    if (data.success) {
-      $("#addPacientModal").modal("hide");
+  // AJAX pentru adăugarea unui pacient nou
+  document.getElementById("pacient-form").addEventListener("submit", function (e) {
+    e.preventDefault();
 
-      // Dacă există rândul gol, elimină-l
-      const emptyRow = document.querySelector("td[colspan]");
-      if (emptyRow) emptyRow.closest("tbody").innerHTML = "";
+    const form = e.target;
+    const formData = new FormData(form);
 
-      // Reinițializează tabelul dacă nu a fost inițializat
-      if (!$.fn.DataTable.isDataTable("#sampleTable")) {
-        table = $('#sampleTable').DataTable();
+    fetch("{% url 'calendarapp:ajax_adauga_pacient' %}", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": form.querySelector("[name='csrfmiddlewaretoken']").value,
+      },
+      body: formData,
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.success) {
+        $("#addPacientModal").modal("hide");
+
+        // Șterge rândul de tip "Nu există pacienți"
+        const emptyRow = document.querySelector("td[colspan]");
+        if (emptyRow) emptyRow.closest("tbody").innerHTML = "";
+
+        // Adaugă noul pacient în tabel
+        table.row.add([
+          data.pacient.nume,
+          data.pacient.cnp,
+          data.pacient.sex,
+          data.pacient.telefon || "",
+          data.pacient.adresa || "",
+          data.pacient.nastere,
+          data.pacient.istoric || "",
+          data.pacient.status_display || "Neprogramat"
+        ]).draw(false);
+
+        form.reset();
+      } else {
+        alert("Eroare la salvare. Verifică câmpurile.");
       }
-
-      // Adaugă noul pacient în tabel
-      table.row.add([
-        data.pacient.nume,
-        data.pacient.cnp,
-        data.pacient.nastere,
-        data.pacient.sex,
-        data.pacient.telefon,
-        data.pacient.adresa,
-        data.pacient.istoric || "",
-        data.pacient.status_display || "Neprogramat"
-      ]).draw(false);  // false = nu resetează pagina curentă din tabel
-
-      form.reset();
-    } else {
-      alert("Eroare la salvare. Verifică câmpurile.");
-    }
-  })
-  .catch((err) => {
-    console.error("Eroare AJAX:", err);
+    })
+    .catch((err) => {
+      console.error("Eroare AJAX:", err);
+    });
   });
 });
 
