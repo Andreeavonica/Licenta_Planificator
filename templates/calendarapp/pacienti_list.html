@@ -47,6 +47,8 @@
             <th>Ora început</th>
             <th>Ora sfârșit</th>
             <th>Durată</th>
+            <th>Asistentă</th>
+
           {% endif %}
 
           <th>Status</th>
@@ -87,6 +89,13 @@
                   <td>{{ e.ora_inceput }}</td>
                   <td>{{ e.ora_sfarsit }}</td>
                   <td>{{ e.durata }} min</td>
+                  <td>
+                  {% if e.asistenta_alocata %}
+                    {{ e.asistenta_alocata.first_name }} {{ e.asistenta_alocata.last_name }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
                 {% endif %}
 
                 <td>{{ e.get_status_display }}</td>
