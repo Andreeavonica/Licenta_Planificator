@@ -202,6 +202,10 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 "observatii": event.observatii,
                 "nume_pacient": event.nume_pacient,
                 "data_interventie": event.data_interventie.isoformat(),
+                "chirurg": f"{event.user.first_name} {event.user.last_name}",
+                "asistenta": f"{event.asistenta_alocata.first_name} {event.asistenta_alocata.last_name}" if event.asistenta_alocata else "Nespecificat",
+
+
             })
 
         notifications = []

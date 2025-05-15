@@ -161,6 +161,12 @@
               <div>Ora inceput: {{ event.ora_inceput|time:"H:i" }}</div>
               <div>Ora_sfarsit: {{ event.ora_sfarsit|time:"H:i" }}</div>
               <div>Durata: {{ event.durata }} min</div>
+              {% if request.user.role == "surgeon" %}
+                <div>Asistentă: {{ event.asistenta_alocata.first_name }} {{ event.asistenta_alocata.last_name }}</div>
+              {% elif request.user.role == "assistant" %}
+                <div>Chirurg: {{ event.user.first_name }} {{ event.user.last_name }}</div>
+              {% endif %}
+
               <div>Status: {{ event.get_status_display }}</div>
             </div>
           {% empty %}
@@ -240,6 +246,9 @@
             <div class="modal-body">
               <p id="tip_operatie_detail"></p>
               <p id="sala_event_detail"></p>
+              <p id="chirurg_detail"></p>
+              <p id="asistenta_detail"></p>
+
               <p id="constrangeri_speciale_detail"></p>
               <p id="observatii_detail"></p>
               <p id="get_status_display"></p>
@@ -293,6 +302,22 @@
         document.getElementById('constrangeri_speciale_detail').textContent = "Alergii: " + (ev.constrangeri_speciale || "N/A");
         document.getElementById('observatii_detail').textContent = "Observații: " + (ev.observatii || "N/A");
         document.getElementById('get_status_display').textContent = "Status: " + (ev.status || "N/A");
+        // Acces rol din contextul Django
+        const userRole = "{{ request.user.role }}";
+
+        // Ascundem ambele inițial
+        document.getElementById('chirurg_detail').style.display = "none";
+        document.getElementById('asistenta_detail').style.display = "none";
+
+        if (userRole === "surgeon") {
+          document.getElementById('asistenta_detail').style.display = "block";
+          document.getElementById('asistenta_detail').textContent = "Asistentă: " + (ev.asistenta || "N/A");
+        } else if (userRole === "assistant") {
+          document.getElementById('chirurg_detail').style.display = "block";
+          document.getElementById('chirurg_detail').textContent = "Chirurg: " + (ev.chirurg || "N/A");
+}
+
+
 
         document.getElementById("delete-event-button").setAttribute("data-event-id", arg.event.id);
         document.getElementById("add-to-next-week").setAttribute("data-event-id-week", arg.event.id);
@@ -430,4 +455,3 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 {% endblock extrascripts %}
-=
