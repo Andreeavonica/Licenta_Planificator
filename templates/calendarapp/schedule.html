@@ -295,10 +295,50 @@ function confirmSchedule(){
   })
   .then(r=>r.json())
   .then(data=>{
-    alert(data.message||"Planificare confirmată.");
-    window.location.reload();
-  })
+  alert(data.message || "Planificare confirmată!");
+  // 🔁 Dacă vrei, redesenezi orarul aici:
+  if (lastScheduleData) {
+    drawTimeline(lastScheduleData);  // reconstruiește vizual orarul fără reload
+  }
+})
+
   .catch(err=>alert("Eroare la confirmare: "+err));
 }
+
+const boardSocket = new WebSocket("ws://" + window.location.host + "/ws/board/");
+
+boardSocket.onmessage = function (e) {
+  const data = JSON.parse(e.data);
+  const eventId = data.event_id;
+  const newStatus = data.status_live;
+
+  console.log("Actualizare primită:", eventId, newStatus);
+
+  const el = document.querySelector(`.surgery[data-id='${eventId}']`);
+  if (el) {
+    // ✅ schimbă doar culoarea de fundal
+    switch (newStatus) {
+      case "checked_in": el.style.backgroundColor = "#4dabf7"; break;
+      case "anes_start": el.style.backgroundColor = "#ff922b"; break;
+      case "surgery_start": el.style.backgroundColor = "#e03131"; break;
+      case "pacu": el.style.backgroundColor = "#5f3dc4"; break;
+      case "finalizat": el.style.backgroundColor = "#2f9e44"; break;
+      default: el.style.backgroundColor = "#adb5bd";
+    }
+
+    // ✅ Etichetă de status adăugată separat (nu șterge alte elemente)
+    let label = el.querySelector(".status-label");
+    if (!label) {
+      label = document.createElement("div");
+      label.className = "status-label";
+      label.style.fontSize = "11px";
+      label.style.fontStyle = "italic";
+      label.style.marginTop = "2px";
+      el.appendChild(label);
+    }
+    label.textContent = "Status: " + newStatus.replace("_", " ");
+  }
+};
+
 </script>
 {% endblock extrascripts %}

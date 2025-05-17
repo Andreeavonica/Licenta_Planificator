@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "calendarapp.apps.CalendarappConfig",
     "accounts.apps.AccountsConfig",
+    'channels',
+
 ]
 
 MIDDLEWARE = [
@@ -72,7 +74,14 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "eventcalendar.wsgi.application"
+ASGI_APPLICATION = 'numele_proiectului.asgi.application'
 
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",  # pentru test local
+    }
+}
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases

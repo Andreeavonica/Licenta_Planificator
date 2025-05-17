@@ -168,7 +168,14 @@
               {% endif %}
 
               <div>Status: {{ event.get_status_display }}</div>
-            </div>
+              {% if request.user.role == "assistant" %}
+                <button class="btn btn-sm btn-outline-primary mt-2"
+                        onclick="openStatusModal({{ event.id }}, '{{ event.status_live }}')">
+                  Actualizează status
+                </button>
+              {% endif %}
+
+            </div>  
           {% empty %}
             <p>No Running Events Found</p>
           {% endfor %}
@@ -265,6 +272,34 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="statusModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-info">
+        <h5 class="modal-title">Actualizare Status Operație</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <form id="statusForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          <input type="hidden" id="eventStatusId" />
+          <select class="form-control" id="statusSelect">
+            <option value="checked_in">Checked-In</option>
+            <option value="anes_start">Anestezie începută</option>
+            <option value="surgery_start">Operație începută</option>
+            <option value="pacu">PACU</option>
+            <option value="finalizat">Finalizat</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 {% endblock content %}
 
 {% block extrascripts %}
@@ -453,5 +488,77 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 });
+
+
+function openStatusModal(eventId, currentStatus) {
+  document.getElementById("eventStatusId").value = eventId;
+  document.getElementById("statusSelect").value = currentStatus;
+  $('#statusModal').modal('show');
+}
+
+document.getElementById("statusForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+
+  const eventId = document.getElementById("eventStatusId").value;
+  const status = document.getElementById("statusSelect").value;
+
+  fetch(`/update_status/${eventId}/`, {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": "{{ csrf_token }}",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: `status_live=${status}`
+  })
+  .then(response => response.json())
+  .then(data => {
+    $('#statusModal').modal('hide');
+    window.location.reload();  // temporar, până adăugăm WebSocket
+  });
+});
+
+
+const boardSocket = new WebSocket(
+  'ws://' + window.location.host + '/ws/board/'
+);
+
+boardSocket.onmessage = function(e) {
+  const data = JSON.parse(e.data);
+  const eventId = data.event_id;
+  const newStatus = data.status_live;
+
+  console.log("Actualizare live:", eventId, newStatus);
+
+  // Caută elementul de intervenție cu data-id corespunzător
+  const surgeryEl = document.querySelector(`.surgery[data-id='${eventId}']`);
+  if (surgeryEl) {
+    // Schimbă culoarea de fundal în funcție de status
+    switch (newStatus) {
+      case "checked_in":
+        surgeryEl.style.backgroundColor = "#4dabf7";
+        break;
+      case "anes_start":
+        surgeryEl.style.backgroundColor = "#ff922b";
+        break;
+      case "surgery_start":
+        surgeryEl.style.backgroundColor = "#e03131";
+        break;
+      case "pacu":
+        surgeryEl.style.backgroundColor = "#5f3dc4";
+        break;
+      case "finalizat":
+        surgeryEl.style.backgroundColor = "#2f9e44";
+        break;
+    }
+
+    // (Optional) poți insera și o iconiță/etichetă cu statusul actualizat
+    surgeryEl.insertAdjacentHTML("beforeend", `<div style="font-size:11px;">🟢 ${newStatus.replace("_", " ")}</div>`);
+  }
+};
+
+boardSocket.onclose = function() {
+  console.warn("WebSocket s-a închis.");
+};
+
 </script>
 {% endblock extrascripts %}

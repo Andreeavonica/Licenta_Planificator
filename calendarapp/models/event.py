@@ -85,7 +85,22 @@ class Event(EventAbstract):
     related_name="interventii_asistate",
     limit_choices_to={"role": "assistant"},
     verbose_name="Asistentă alocată"
-)
+)   
+    STATUS_REAL_CHOICES = [
+    ("checked_in", "Checked-In"),
+    ("anes_start", "Anestezie începută"),
+    ("surgery_start", "Operație începută"),
+    ("pacu", "PACU"),
+    ("finalizat", "Finalizat"),
+    ]
+
+    status_live = models.CharField(
+        max_length=20,
+        choices=STATUS_REAL_CHOICES,
+        default="checked_in",
+        verbose_name="Stadiu Intervenție (Live)"
+    )
+
 
 
     objects = EventManager()

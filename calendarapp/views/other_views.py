@@ -470,3 +470,37 @@ def pacienti_neprogramati(request):
         "form": form,
         "tip": "neprogramati"
     })
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+@csrf_exempt
+@login_required
+def update_status(request, event_id):
+    if request.method == "POST":
+        event = get_object_or_404(Event, id=event_id)
+
+        # Doar asistenta alocată poate modifica
+        if request.user.role != "assistant" or event.asistenta_alocata != request.user:
+            return JsonResponse({"error": "Acces nepermis"}, status=403)
+
+        new_status = request.POST.get("status_live")
+
+        if new_status in dict(Event.STATUS_REAL_CHOICES):
+            event.status_live = new_status
+            event.save()
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "live_board",  # numele grupului definit în consumer
+                {
+                    "type": "send_status_update",   # corespunde metodei din consumer
+                    "event_id": event.id,
+                    "status_live": event.status_live,
+                }
+            )
+
+            # (Vom adăuga aici emiterea WebSocket în pasul următor)
+            return JsonResponse({"message": "Status actualizat cu succes"})
+        else:
+            return JsonResponse({"error": "Status invalid"}, status=400)
+    return JsonResponse({"error": "Metodă invalidă"}, status=405)
