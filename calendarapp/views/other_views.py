@@ -504,3 +504,20 @@ def update_status(request, event_id):
         else:
             return JsonResponse({"error": "Status invalid"}, status=400)
     return JsonResponse({"error": "Metodă invalidă"}, status=405)
+
+@login_required
+def evenimente_asistenta(request):
+    if request.user.role != "assistant":
+        return redirect("calendarapp:calendar")
+
+    events = Event.objects.filter(
+        asistenta_alocata=request.user,
+        is_active=True,
+        is_deleted=False,
+        status="aprobat"
+    ).order_by("data_interventie")
+
+    return render(request, "calendarapp/events_list.html", {
+        "object_list": events,
+        "show_approved_fields": True
+    })

@@ -135,22 +135,44 @@
                     <a class="app-menu__item" href="{% url 'calendarapp:calendar' %}"><i class="app-menu__icon fa fa-calendar"></i><span class="app-menu__label">Calendar</span></a>
                 </li>
                 <li class="treeview">
-                    <a class="app-menu__item" href="#" data-toggle="treeview"><i class="app-menu__icon fa fa-th-list"></i><span class="app-menu__label">Evenimente</span><i class="treeview-indicator fa fa-angle-right"></i></a>
+                    <a class="app-menu__item" href="#" data-toggle="treeview">
+                        <i class="app-menu__icon fa fa-th-list"></i>
+                        <span class="app-menu__label">Evenimente</span>
+                        <i class="treeview-indicator fa fa-angle-right"></i>
+                    </a>
                     <ul class="treeview-menu">
-                        <li>
-                            <a class="treeview-item" href="{% url 'calendarapp:pending_events' %}"><i class="icon fa fa-circle-o"></i> Cererile mele</a>
-                        </li>
-                        <li>
-                            <a class="treeview-item" href="{% url 'calendarapp:upcoming_events' %}"><i class="icon fa fa-circle-o"></i> Aprobate</a>
-                        </li>
-                        <li>
-                            <a class="treeview-item" href="{% url 'calendarapp:completed_events' %}"><i class="icon fa fa-circle-o"></i>Completate</a>
-                        </li>
-                        <li>
-                            <a class="treeview-item" href="{% url 'calendarapp:all_events' %}"><i class="icon fa fa-circle-o"></i> Toate</a>
-                        </li>
+                        {% if request.user.is_authenticated and request.user.role == "assistant" %}
+                            <li>
+                                <a class="treeview-item" href="{% url 'calendarapp:evenimente_asistenta' %}">
+                                    <i class="icon fa fa-circle-o"></i> Intervențiile mele
+                                </a>
+                            </li>
+                        {% else %}
+                            <li>
+                                <a class="treeview-item" href="{% url 'calendarapp:pending_events' %}">
+                                    <i class="icon fa fa-circle-o"></i> Cererile mele
+                                </a>
+                            </li>
+                            <li>
+                                <a class="treeview-item" href="{% url 'calendarapp:upcoming_events' %}">
+                                    <i class="icon fa fa-circle-o"></i> Aprobate
+                                </a>
+                            </li>
+                            <li>
+                                <a class="treeview-item" href="{% url 'calendarapp:completed_events' %}">
+                                    <i class="icon fa fa-circle-o"></i> Completate
+                                </a>
+                            </li>
+                            <li>
+                                <a class="treeview-item" href="{% url 'calendarapp:all_events' %}">
+                                    <i class="icon fa fa-circle-o"></i> Toate
+                                </a>
+                            </li>
+                        {% endif %}
                     </ul>
                 </li>
+
+
 
                 <li class="treeview">
                     <a class="app-menu__item" href="" data-toggle="treeview"><i class="app-menu__icon fa fa-users"></i><span class="app-menu__label">Pacienții Mei</span><i class="treeview-indicator fa fa-angle-right"></i></a>
