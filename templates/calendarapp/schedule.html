@@ -100,7 +100,25 @@
 .surgery:hover {
   transform: scale(1.05);
   z-index: 10;
-}</style>
+}
+
+.surgery.collapsed {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  height: 90%;
+}
+
+.surgery.expanded {
+  white-space: normal;
+  overflow: visible;
+  height: auto;
+  z-index: 20;
+  padding: 6px 8px;
+}
+
+
+</style>
 {% endblock extracss %}
 
 {% block breadcrumb %}
@@ -242,6 +260,7 @@ function drawTimeline(data){
         `;
 
       }
+      div.classList.add("collapsed");
 
       line.appendChild(div);
     });
@@ -250,6 +269,13 @@ function drawTimeline(data){
     body.appendChild(row);
   });
 }
+document.addEventListener("click", function (e) {
+  if (e.target.closest(".surgery")) {
+    const card = e.target.closest(".surgery");
+    card.classList.toggle("expanded");
+    card.classList.toggle("collapsed");
+  }
+});
 
 
 document.addEventListener("DOMContentLoaded",()=>{
