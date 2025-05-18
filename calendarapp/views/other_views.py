@@ -333,6 +333,12 @@ def confirm_schedule(request):
                         asistenta = User.objects.filter(id=nurse_id, role="assistant").first()
                         if asistenta:
                             event.asistenta_alocata = asistenta
+                                    # ✅ Notificare pentru asistentă
+                            Notification.objects.create(
+                                user=asistenta,
+                                message=f"Ai fost alocată la o intervenție în data de {event.data_interventie.strftime('%d.%m.%Y')}."
+                            )
+
 
                     event.save()
 
