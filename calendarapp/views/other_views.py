@@ -527,3 +527,88 @@ def evenimente_asistenta(request):
         "object_list": events,
         "show_approved_fields": True
     })
+
+from django.db.models import Count
+from django.utils.timezone import now, timedelta
+from django.db.models import Count
+from django.utils.timezone import now, timedelta
+from calendarapp.optimization import schedule_surgeries
+from datetime import datetime
+from calendarapp.models import Event
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+from django.db.models import Count, F  # ← adaugă F aici
+
+
+@login_required
+def manager_dashboard(request):
+    if request.user.role != "manager":
+        return redirect("calendarapp:calendar")
+
+    # 📊 Grafic 1: distribuție statusuri
+    status_data = (
+        Event.objects
+        .filter(is_active=True, is_deleted=False)
+        .values("status")
+        .annotate(count=Count("id"))
+    )
+    status_labels = [item["status"].replace("_", " ").capitalize() for item in status_data]
+    status_counts = [item["count"] for item in status_data]
+
+    # 📈 Grafic 2: intervenții în ultimele 7 zile
+    today = now().date()
+    last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+    date_labels = [d.strftime("%d.%m") for d in last_7_days]
+    daily_counts = [
+        Event.objects.filter(
+            is_active=True,
+            is_deleted=False,
+            data_interventie__date=d
+        ).count()
+        for d in last_7_days
+    ]
+
+    # 🟪 Grafic 3: utilizarea sălilor – se rulează algoritmul
+    today_str = "2025-05-22"  # sau poți folosi today.strftime("%Y-%m-%d")
+    timetable = schedule_surgeries(today_str)
+    sala_labels = [f"Sala {room['room']}" for room in timetable]
+    sala_values = [room["total_used"] for room in timetable]
+
+    # 🟠 Grafic 4: distribuția duratei (scurte vs. lungi)
+    long_short_data = Event.objects.filter(is_active=True, is_deleted=False).values("timp_estimare")
+    long = sum(1 for row in long_short_data if row["timp_estimare"] > 120)
+    short = sum(1 for row in long_short_data if row["timp_estimare"] <= 120)
+    durata_labels = ["Scurte (< 2h)", "Lungi (> 2h)"]
+    durata_counts = [short, long]
+
+    # 🟡 Grafic 5: repartizarea intervențiilor pe asistente
+    asistente_data = (
+        Event.objects
+        .filter(is_active=True, is_deleted=False, asistenta_alocata__isnull=False)
+        .values(name=F("asistenta_alocata__first_name"))
+        .annotate(count=Count("id"))
+    )
+    asistenta_labels = [item["name"] for item in asistente_data]
+    asistenta_counts = [item["count"] for item in asistente_data]
+
+    context = {
+        # Date pentru grafice
+        "status_labels": status_labels,
+        "status_counts": status_counts,
+        "date_labels": date_labels,
+        "daily_counts": daily_counts,
+        "sala_labels": sala_labels,
+        "sala_values": sala_values,
+        "durata_labels": durata_labels,
+        "durata_counts": durata_counts,
+        "asistenta_labels": asistenta_labels,
+        "asistenta_counts": asistenta_counts,
+
+        # Alte date de stare
+        "running_events": Event.objects.get_running_events(request.user),
+        "upcoming_events": Event.objects.get_upcoming_events(request.user),
+        "completed_events": Event.objects.get_completed_events(request.user).count(),
+        "latest_events": Event.objects.filter(is_active=True, is_deleted=False).order_by("-data_interventie")[:10],
+    }
+
+    return render(request, "calendarapp/dashboard.html", context)

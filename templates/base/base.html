@@ -128,9 +128,15 @@
         <div class="app-sidebar__overlay" data-toggle="sidebar"></div>
         <aside class="app-sidebar">
             <ul class="app-menu">
+                {% if request.user.role == "manager" %}
                 <li>
-                    <a class="app-menu__item" href="{% url 'dashboard' %}"><i class="app-menu__icon fa fa-dashboard"></i><span class="app-menu__label">Dashboard</span></a>
+                <a class="app-menu__item" href="{% url 'calendarapp:manager_dashboard' %}">
+                    <i class="app-menu__icon fa fa-pie-chart"></i>
+                    <span class="app-menu__label"> Dashboard</span>
+                </a>
                 </li>
+                {% endif %}
+
                 <li>
                     <a class="app-menu__item" href="{% url 'calendarapp:calendar' %}"><i class="app-menu__icon fa fa-calendar"></i><span class="app-menu__label">Calendar</span></a>
                 </li>

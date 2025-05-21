@@ -61,46 +61,173 @@
             </div>
         </div>
     </div> -->
-    <div class="col-md-12">
+  
+    <div class="row mt-4">
+    <div class="col-md-6">
         <div class="tile">
-            <div class="tile-body">
-                <div class="table-responsive">
-                    <div id="sampleTable_wrapper" class="dataTables_wrapper container-fluid dt-bootstrap4 no-footer">
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <table class="table table-hover table-bordered dataTable no-footer" id="sampleTable" role="grid" aria-describedby="sampleTable_info">
-                                    <thead>
-                                        <tr role="row">
-                                            <th class="sorting_asc" tabindex="0" aria-controls="sampleTable" rowspan="1" colspan="1" aria-sort="ascending" aria-label="Name: activate to sort column descending" style="width: 261.641px;">SL</th>
-                                            <th class="sorting" tabindex="0" aria-controls="sampleTable" rowspan="1" colspan="1" aria-label="Position: activate to sort column ascending" style="width: 417.312px;">Event Name</th>
-                                            <th class="sorting" tabindex="0" aria-controls="sampleTable" rowspan="1" colspan="1" aria-label="Office: activate to sort column ascending" style="width: 189.281px;">Start Time</th>
-                                            <th class="sorting" tabindex="0" aria-controls="sampleTable" rowspan="1" colspan="1" aria-label="Age: activate to sort column ascending" style="width: 102.141px;">End Time</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for event in latest_events %}
-                                            <tr role="row" class="odd">
-                                                <td class="sorting_1">{{ forloop.counter }}</td>
-                                                <td>{{ event.title }}</td>
-                                                <td>{{ event.start_time }}</td>
-                                                <td>{{ event.end_time }}</td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <h4>Status Intervenții</h4>
+            <canvas id="statusChart"></canvas>
         </div>
     </div>
+    <div class="col-md-6">
+        <div class="tile">
+            <h4>Intervenții în ultimele 7 zile</h4>
+            <canvas id="dailyChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-12 mt-4">
+        <div class="tile" style="min-height: 350px;">
+            <h4>Utilizarea sălilor de operație (minute)</h4>
+            <canvas id="salaChart" height="200"></canvas>
+        </div>
+        </div>
+
+            <!-- În dashboard.html -->
+        <div class="row mt-4">
+        <div class="col-md-6 col-lg-6">
+            <div class="tile" style="min-height: 350px;">
+            <h4>Distribuție durată intervenții</h4>
+            <canvas id="durataChart" height="200"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-6">
+            <div class="tile" style="min-height: 350px;">
+            <h4>Încărcare asistente</h4>
+            <canvas id="asistentaChart" height="200"></canvas>
+            </div>
+        </div>
+        </div>
+
+
+
 
 </div>
 {% endblock content %}
 
 {% block extrascripts %}
-    <script type="text/javascript" src="{% static 'js/plugins/jquery.dataTables.min.js' %}"></script>
-    <script type="text/javascript" src="{% static 'js/plugins/dataTables.bootstrap.min.js' %}"></script>
-    <script type="text/javascript">$('#sampleTable').DataTable();</script>
+  <script type="text/javascript" src="{% static 'js/plugins/jquery.dataTables.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'js/plugins/dataTables.bootstrap.min.js' %}"></script>
+  <script type="text/javascript">
+      $('#sampleTable').DataTable();
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+      const statusCtx = document.getElementById('statusChart').getContext('2d');
+      const statusChart = new Chart(statusCtx, {
+          type: 'pie',
+          data: {
+              labels: {{ status_labels|safe }},
+              datasets: [{
+                  label: 'Număr intervenții',
+                  data: {{ status_counts|safe }},
+                  backgroundColor: ['#17a2b8', '#28a745', '#ffc107', '#dc3545']
+              }]
+          },
+          options: {
+              responsive: true,
+              plugins: {
+                  legend: { position: 'bottom' }
+              }
+          }
+      });
+
+      const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+      const dailyChart = new Chart(dailyCtx, {
+          type: 'bar',
+          data: {
+              labels: {{ date_labels|safe }},
+              datasets: [{
+                  label: 'Intervenții pe zi',
+                  data: {{ daily_counts|safe }},
+                  backgroundColor: '#007bff'
+              }]
+          },
+          options: {
+              responsive: true,
+              scales: {
+                  y: {
+                      beginAtZero: true,
+                      ticks: {
+                          stepSize: 1
+                      }
+                  }
+              }
+          }
+      });
+
+    const salaCtx = document.getElementById('salaChart').getContext('2d');
+    const salaChart = new Chart(salaCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ sala_labels|safe }},
+            datasets: [{
+                label: 'Timp utilizat (minute)',
+                data: {{ sala_values|safe }},
+                backgroundColor: '#6f42c1'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Minute'
+                    }
+                }
+            }
+        }
+    });
+
+    const asistentaCtx = document.getElementById('asistentaChart').getContext('2d');
+const asistentaChart = new Chart(asistentaCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ asistenta_labels|safe }},
+        datasets: [{
+            label: 'Număr intervenții',
+            data: {{ asistenta_counts|safe }},
+            backgroundColor: '#ffc107'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// În blocul <script>
+const durataCtx = document.getElementById('durataChart').getContext('2d');
+const durataChart = new Chart(durataCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ durata_labels|safe }},
+        datasets: [{
+            data: {{ durata_counts|safe }},
+            backgroundColor: ['#20c997', '#fd7e14']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+
+
+  </script>
 {% endblock extrascripts %}
