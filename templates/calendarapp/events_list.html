@@ -60,6 +60,21 @@
                                                 <th>Observații</th>
                                                 <th>Status</th> <!-- Nouă coloană pentru status -->
                                             {% endif %}
+
+                                            {% if show_completed_fields %}
+                                                <th>Constrângeri Speciale</th>
+                                                <th>Observații</th>
+                                                <th>Sală</th>
+                                                <th>Ora început</th>
+                                                <th>Ora sfârșit</th>
+                                                <th>Durată</th>
+                                                {% if request.user.role == "assistant" %}
+                                                    <th>Chirurg</th>
+                                                {% else %}
+                                                    <th>Asistentă</th>
+                                                {% endif %}
+                                                <th>Status Operație</th> <!-- Nouă coloană pentru status -->
+                                            {% endif %}
                                         </tr>
                                         </thead>
                                         
@@ -102,6 +117,30 @@
                                                     <td>{{ event.get_status_display }}</td>
 
                                                 {% endif %}
+
+                                                {% if show_completed_fields %}
+                                                    <td>{{ event.constrangeri_speciale }}</td>
+                                                    <td>{{ event.observatii }}</td>
+                                                    <td>{{ event.sala_alocata }}</td>
+                                                    <td>{{ event.ora_inceput|time:"H:i" }}</td>
+                                                    <td>{{ event.ora_sfarsit|time:"H:i" }}</td>
+                                                    <td>{{ event.durata }} min</td>
+                                                    {% if request.user.role == "assistant" %}
+                                                        <td>{{ event.user.first_name }} {{ event.user.last_name }}</td>
+                                                    {% else %}
+                                                        <td>
+                                                            {% if event.asistenta_alocata %}
+                                                                {{ event.asistenta_alocata.first_name }} {{ event.asistenta_alocata.last_name }}
+                                                            {% else %}
+                                                                -
+                                                            {% endif %}
+                                                        </td>
+                                                    {% endif %}
+
+                                                    <td>{{ event.get_status_live_display }}</td>
+
+                                                {% endif %}
+
 
                                                 {% if show_all_fields %}
                                                     <td>{{ event.constrangeri_speciale }}</td>

@@ -1,4 +1,5 @@
 
+
 from django.shortcuts import render, redirect
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views import generic
@@ -612,3 +613,21 @@ def manager_dashboard(request):
     }
 
     return render(request, "calendarapp/dashboard.html", context)
+@login_required
+def asistenta_completed_events(request):
+    if request.user.role != "assistant":
+        return render(request, "403.html")  # sau redirect, în funcție de cum gestionezi permisiunile
+
+    events = Event.objects.filter(
+        asistenta_alocata=request.user,
+        is_active=True,
+        is_deleted=False,
+        status_live="finalizat"
+    ).order_by("data_interventie")
+
+    context = {
+        "object_list": events,
+        "show_completed_fields": True
+    }
+
+    return render(request, "calendarapp/events_list.html", context)

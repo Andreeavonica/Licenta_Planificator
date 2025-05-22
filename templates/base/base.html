@@ -43,10 +43,7 @@
             <a class="app-sidebar__toggle" href="#" data-toggle="sidebar" aria-label="Hide Sidebar"></a>
             <!-- Navbar Right Menu-->
             <ul class="app-nav">
-                 <li class="app-search">
-                    <input class="app-search__input" type="search" placeholder="Search" />
-                    <button class="app-search__button"><i class="fa fa-search"></i></button>
-                </li> 
+                 
 
                 <!--Notification Menu-->
                 {% if request.user.is_authenticated %}
@@ -153,6 +150,12 @@
                                     <i class="icon fa fa-circle-o"></i> Intervențiile mele
                                 </a>
                             </li>
+
+                            <li>
+                                <a class="treeview-item" href="{% url 'calendarapp:asistenta_completed_events' %}">
+                                    <i class="icon fa fa-circle-o"></i> Completate
+                                </a>
+                            </li>
                         {% else %}
                             <li>
                                 <a class="treeview-item" href="{% url 'calendarapp:pending_events' %}">
@@ -196,13 +199,16 @@
                     </ul>
                 </li>
                 
-                  
+                {% if request.user.role == "manager" %}
+
                 <li>
                     <a class="app-menu__item" href="{% url 'calendarapp:orar' %}">
                         <i class="app-menu__icon fa fa-clock-o"></i>
                         <span class="app-menu__label">Orar</span>
                     </a>
                 </li>
+                {% endif %}
+
             </ul>
         </aside>
         <main class="app-content">

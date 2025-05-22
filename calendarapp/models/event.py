@@ -23,8 +23,9 @@ class EventManager(models.Manager):
             user=user,
             is_active=True,
             is_deleted=False,
-            data_interventie__lt=datetime.now().date(),
-        )
+            status_live="finalizat"
+    )
+
 
     def get_upcoming_events(self, user):
         return Event.objects.filter(

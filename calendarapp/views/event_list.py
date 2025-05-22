@@ -68,3 +68,16 @@ class PendingEventsListView(ListView):
         context["show_pending_fields"] = True
         return context
 
+class CompletedEventsListView(ListView):
+    """ Completed events list view """
+
+    template_name = "calendarapp/events_list.html"
+    model = Event
+
+    def get_queryset(self):
+        return Event.objects.get_completed_events(user=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["show_completed_fields"] = True  # ← Adaugă asta
+        return context
