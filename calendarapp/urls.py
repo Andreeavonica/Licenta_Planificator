@@ -4,7 +4,7 @@ from django.urls import path
 from . import views
 from .views import other_views
 from calendarapp.views.other_views import mark_all_notifications_read
-from calendarapp.views.other_views import ajax_adauga_pacient, pacienti_in_asteptare, pacienti_programati,pacienti_neprogramati,update_status,manager_dashboard,asistenta_completed_events
+from calendarapp.views.other_views import ajax_adauga_pacient, pacienti_in_asteptare, pacienti_programati,pacienti_neprogramati,update_status,manager_dashboard,asistenta_completed_events,pacientii_asistentei
 
 
 
@@ -62,6 +62,8 @@ urlpatterns = [
     path("evenimente-asistenta/", other_views.evenimente_asistenta, name="evenimente_asistenta"),
     path("manager-dashboard/",manager_dashboard, name="manager_dashboard"),
     path("asistenta/completate/", asistenta_completed_events, name="asistenta_completed_events"),
+    path("asistenta/pacienti/", pacientii_asistentei, name="asistenta_pacienti"),
+
 
 
 

@@ -34,41 +34,54 @@
           <th>Data nașterii</th>
           <th>Istoric medical</th>
 
-          {% if tip == "asteptare" or tip == "programati" %}
+          {% if request.user.role == "assistant" %}
             <th>Tip operație</th>
             <th>Data intervenție</th>
             <th>Timp estimat</th>
             <th>Constrângeri</th>
             <th>Observații</th>
-          {% endif %}
-
-          {% if tip == "programati" %}
             <th>Sală</th>
             <th>Ora început</th>
             <th>Ora sfârșit</th>
             <th>Durată</th>
-            <th>Asistentă</th>
-
+            <th>Status</th>
+            <th>Chirurg</th>
+          {% elif tip == "asteptare" or tip == "programati" %}
+            <th>Tip operație</th>
+            <th>Data intervenție</th>
+            <th>Timp estimat</th>
+            <th>Constrângeri</th>
+            <th>Observații</th>
+            {% if tip == "programati" %}
+              <th>Sală</th>
+              <th>Ora început</th>
+              <th>Ora sfârșit</th>
+              <th>Durată</th>
+              <th>Asistentă</th>
+            {% endif %}
+            <th>Status</th>
+          {% else %}
+            <th>Status</th>
           {% endif %}
-
-          <th>Status</th>
         </tr>
       </thead>
+
       <tbody>
-        {% for p in pacienti %}
-          {% if tip == "neprogramati" %}
-            <tr>
-              <td>{{ p.nume_complet }}</td>
-              <td>{{ p.cnp }}</td>
-              <td>{{ p.get_sex_display }}</td>
-              <td>{{ p.telefon }}</td>
-              <td>{{ p.adresa }}</td>
-              <td>{{ p.data_nasterii }}</td>
-              <td>{{ p.istoric_medical }}</td>
-              <td>{{ p.get_status_display }}</td>
-            </tr>
-          {% else %}
-            {% with e=p.event pacient=p.pacient %}
+      {% for p in pacienti %}
+        {% if tip == "neprogramati" %}
+          <tr>
+            <td>{{ p.nume_complet }}</td>
+            <td>{{ p.cnp }}</td>
+            <td>{{ p.get_sex_display }}</td>
+            <td>{{ p.telefon }}</td>
+            <td>{{ p.adresa }}</td>
+            <td>{{ p.data_nasterii }}</td>
+            <td>{{ p.istoric_medical }}</td>
+            <td>{{ p.get_status_display }}</td>
+          </tr>
+        {% else %}
+          {% with e=p.event pacient=p.pacient %}
+            {% if request.user.role == "assistant" %}
               <tr>
                 <td>{{ pacient.nume_complet }}</td>
                 <td>{{ pacient.cnp }}</td>
@@ -77,7 +90,27 @@
                 <td>{{ pacient.adresa }}</td>
                 <td>{{ pacient.data_nasterii }}</td>
                 <td>{{ pacient.istoric_medical }}</td>
-
+                <td>{{ e.tip_operatie }}</td>
+                <td>{{ e.data_interventie|date:"j F Y" }}</td>
+                <td>{{ e.timp_estimare }} min</td>
+                <td>{{ e.constrangeri_speciale }}</td>
+                <td>{{ e.observatii }}</td>
+                <td>{{ e.sala_alocata }}</td>
+                <td>{{ e.ora_inceput }}</td>
+                <td>{{ e.ora_sfarsit }}</td>
+                <td>{{ e.durata }} min</td>
+                <td>{{ e.get_status_display }}</td>
+                <td>{{ e.user.first_name }} {{ e.user.last_name }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td>{{ pacient.nume_complet }}</td>
+                <td>{{ pacient.cnp }}</td>
+                <td>{{ pacient.get_sex_display }}</td>
+                <td>{{ pacient.telefon }}</td>
+                <td>{{ pacient.adresa }}</td>
+                <td>{{ pacient.data_nasterii }}</td>
+                <td>{{ pacient.istoric_medical }}</td>
                 <td>{{ e.tip_operatie }}</td>
                 <td>{{ e.data_interventie|date:"j F Y" }}</td>
                 <td>{{ e.timp_estimare }} min</td>
@@ -90,24 +123,26 @@
                   <td>{{ e.ora_sfarsit }}</td>
                   <td>{{ e.durata }} min</td>
                   <td>
-                  {% if e.asistenta_alocata %}
-                    {{ e.asistenta_alocata.first_name }} {{ e.asistenta_alocata.last_name }}
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
+                    {% if e.asistenta_alocata %}
+                      {{ e.asistenta_alocata.first_name }} {{ e.asistenta_alocata.last_name }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
                 {% endif %}
 
                 <td>{{ e.get_status_display }}</td>
               </tr>
-            {% endwith %}
-          {% endif %}
-        {% empty %}
-          <tr>
-            <td colspan="16">Nu există pacienți de afișat.</td>
-          </tr>
-        {% endfor %}
-      </tbody>
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+      {% empty %}
+        <tr>
+          <td colspan="18">Nu există pacienți de afișat.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+
     </table>
   </div>
 </div>

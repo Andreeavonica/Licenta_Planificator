@@ -631,3 +631,32 @@ def asistenta_completed_events(request):
     }
 
     return render(request, "calendarapp/events_list.html", context)
+from calendarapp.models.event import Pacient  # deja importat
+
+@login_required
+def pacientii_asistentei(request):
+    if request.user.role != "assistant":
+        return redirect("calendarapp:calendar")
+
+    events = Event.objects.filter(
+        asistenta_alocata=request.user,
+        is_active=True,
+        is_deleted=False
+    )
+
+    enriched = []
+    for e in events:
+        pacient = Pacient.objects.filter(
+            nume_complet=e.nume_pacient,
+            chirurg=e.user
+        ).first()
+        if pacient:
+            enriched.append({
+                "event": e,
+                "pacient": pacient
+            })
+
+    return render(request, "calendarapp/pacienti_list.html", {
+        "pacienti": enriched,
+        "tip": "asistenta"
+    })
