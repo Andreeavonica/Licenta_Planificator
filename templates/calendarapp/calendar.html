@@ -162,7 +162,6 @@
 {% block breadcrumb %}
   <div>
     <h1><i class="fa fa-calendar"></i> Calendar</h1>
-    <p>Event Calendar</p>
   </div>
   <ul class="app-breadcrumb breadcrumb">
     <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
@@ -229,7 +228,7 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
           <div class="modal-content">
             <div class="modal-header bg-primary">
-              <h5 class="modal-title text-white">Add New Event</h5>
+              <h5 class="modal-title text-white">Planifica o noua intervenție</h5>
               <button id="modalClose1" type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <form method="post">
@@ -260,8 +259,8 @@
                 <label>Observații:</label>{{ form.observatii }}
               </div>
               <div class="modal-footer">
-                <button id="modalClose2" type="button" class="btn btn-danger">Close</button>
-                <button type="submit" class="btn btn-primary">Save</button>
+                <button id="modalClose2" type="button" class="btn btn-danger">Închide</button>
+                <button type="submit" class="btn btn-primary">Salvează</button>
               </div>
             </form>
           </div>
@@ -287,9 +286,9 @@
               <p id="get_status_display"></p>
             </div>
             <div class="modal-footer">
-              <button id="delete-event-button" data-event-id="" type="button" class="btn btn-danger">Delete</button>
-              <button id="add-to-next-week" data-event-id-week="" type="button" class="btn btn-success">Next Week</button>
-              <button id="add-to-next-day" data-event-id-day="" type="button" class="btn btn-primary">Next Day</button>
+              <button id="delete-event-button" data-event-id="" type="button" class="btn btn-danger">Șterge</button>
+              <button id="add-to-next-week" data-event-id-week="" type="button" class="btn btn-success">Săptămana următoare</button>
+              <button id="add-to-next-day" data-event-id-day="" type="button" class="btn btn-primary">Ziua următoare</button>
             </div>
           </div>
         </div>
@@ -330,6 +329,8 @@
 
 {% block extrascripts %}
 <script src="{% static 'calender/main.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ro.js"></script>
+
 <script>
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -337,6 +338,7 @@
     const today = new Date();
     const allEventsRaw = {{ events|safe }};
    const  calendar = new FullCalendar.Calendar(calendarEl, {
+      locale: 'ro',  // ← adaugă aici pentru traducere în română
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',

@@ -1,11 +1,17 @@
 {% extends 'base/base.html' %}
 {% load static %}
-{% block title %}
-  {% if tip == "asteptare" %} Pacienți în așteptare
-  {% elif tip == "programati" %} Pacienți programați
-  {% else %} Pacienții Mei
-  {% endif %}
-{% endblock %}
+{% block title %}Event List{% endblock title %}
+
+{% block breadcrumb %}
+    <div>
+        <h1><i class="fa fa-dashboard"></i> Pacienții Mei</h1>
+    </div>
+    <ul class="app-breadcrumb breadcrumb">
+        <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+        <li class="breadcrumb-item"><a>Pacienții Mei</a></li>
+
+    </ul>
+{% endblock breadcrumb %}
 
 {% block content %}
 <div class="tile">
