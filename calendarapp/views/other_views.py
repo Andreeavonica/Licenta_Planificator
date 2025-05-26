@@ -559,37 +559,57 @@ def _compute_idle(room_schedule: List[Dict]) -> int:
     return max(idle, 0)
 
 # ————————  VIEW  ————————
+from datetime import datetime, date
+from typing import List, Dict
+import numpy as np
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from calendarapp.optimization import schedule_surgeries, DAY_START, DAY_END, DIRTY_CLEAN_GAP
+
+
+def _minutes_between(t1: str, t2: str) -> int:
+    h1, m1 = map(int, t1.split(":"))
+    h2, m2 = map(int, t2.split(":"))
+    return (h2 * 60 + m2) - (h1 * 60 + m1)
+
+
+def _compute_idle(room_schedule: List[Dict]) -> int:
+    if not room_schedule:
+        return 0
+    idle = _minutes_between(f"{DAY_START//60:02d}:{DAY_START%60:02d}", room_schedule[0]["start_time"])
+    for prev, cur in zip(room_schedule, room_schedule[1:]):
+        idle += _minutes_between(prev["end_time"], cur["start_time"])
+    return max(idle, 0)
+
 
 @login_required
 def manager_dashboard(request):
-    """Vizualizare performantă a rezultatelor algoritmului de planificare."""
     date_str = request.GET.get("zi") or date.today().strftime("%Y-%m-%d")
-
-    # 1️⃣  Rulează optimizarea pentru data selectată
     timetable = schedule_surgeries(date_str)
 
-    # 2️⃣  KPI globale
     total_slots = (DAY_END - DAY_START) * (len(timetable) or 1)
     total_used = sum(r["total_used"] for r in timetable)
     schedule_eff = round(total_used / total_slots * 100, 1)
     unscheduled = sum(1 for r in timetable for e in r["schedule"] if e.get("unscheduled"))
 
-    # 3️⃣  Structuri pentru grafice
     room_labels, room_util_pct = [], []
     asistenta_counts: Dict[str, int] = {}
     doctor_counts: Dict[str, int] = {}
     total_surgery_min = total_clean_min = idle_total = dirty_penalty = 0
+    idle_per_room = []
 
     for row in timetable:
-        # — sări peste sala de urgență / rezervă dacă așa e marcată
         if row.get("reserved_emergency"):
             continue
 
-        # — utilizare sală
         room_labels.append(str(row["room"]))
-        room_util_pct.append(round(row["total_used"] / (DAY_END - DAY_START) * 100, 1))
+        util_pct = round(row["total_used"] / (DAY_END - DAY_START) * 100, 1)
+        room_util_pct.append(util_pct)
 
-        # — parcurge intervențiile din sală
+        room_idle = _compute_idle(row["schedule"])
+        idle_per_room.append(room_idle)
+        idle_total += room_idle
+
         for ev in row["schedule"]:
             if ev.get("reserved"):
                 continue
@@ -598,27 +618,21 @@ def manager_dashboard(request):
             if not ev["is_clean"]:
                 dirty_penalty += DIRTY_CLEAN_GAP
 
-            # încărcare asistentă
             nurse = ev.get("nurse") or "—"
             asistenta_counts[nurse] = asistenta_counts.get(nurse, 0) + 1
-            # încărcare doctor
+
             doctor = ev.get("doctor") or ev.get("surgeon") or "—"
             doctor_counts[doctor] = doctor_counts.get(doctor, 0) + 1
-
-        idle_total += _compute_idle(row["schedule"])
 
     cost_labels = ["idle", "clean", "dirty"]
     cost_values = [idle_total, total_clean_min, dirty_penalty]
 
-    # 4️⃣  Context pentru template
     context = {
         "selected_day": datetime.strptime(date_str, "%Y-%m-%d").date(),
-        # KPI
         "total_surgeries": sum(len(r["schedule"]) for r in timetable),
         "schedule_efficiency": schedule_eff,
         "unscheduled_count": unscheduled,
         "avg_room_utilization": round(np.mean(room_util_pct) if room_util_pct else 0, 1),
-        # Grafice
         "room_labels": room_labels,
         "room_util_pct": room_util_pct,
         "asistenta_labels": list(asistenta_counts.keys()),
@@ -628,9 +642,12 @@ def manager_dashboard(request):
         "cost_labels": cost_labels,
         "cost_values": cost_values,
         "time_breakdown": [total_surgery_min, total_clean_min],
+        "idle_labels": room_labels,
+        "idle_values": idle_per_room,
     }
 
     return render(request, "calendarapp/dashboard.html", context)
+
 @login_required
 def asistenta_completed_events(request):
     if request.user.role != "assistant":
