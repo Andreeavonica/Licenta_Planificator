@@ -529,87 +529,105 @@ def evenimente_asistenta(request):
         "show_approved_fields": True
     })
 
-from django.db.models import Count
-from django.utils.timezone import now, timedelta
-from django.db.models import Count
-from django.utils.timezone import now, timedelta
-from calendarapp.optimization import schedule_surgeries
-from datetime import datetime
-from calendarapp.models import Event
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
-from django.db.models import Count, F  # ← adaugă F aici
 
+
+from datetime import datetime, date
+from typing import List, Dict
+
+import numpy as np
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+
+from calendarapp.optimization import schedule_surgeries, DAY_START, DAY_END, DIRTY_CLEAN_GAP
+
+# ————————  UTILITARE  ————————
+
+def _minutes_between(t1: str, t2: str) -> int:
+    """Returnează numărul de minute dintre două timestamp‑uri HH:MM."""
+    h1, m1 = map(int, t1.split(":"))
+    h2, m2 = map(int, t2.split(":"))
+    return (h2 * 60 + m2) - (h1 * 60 + m1)
+
+
+def _compute_idle(room_schedule: List[Dict]) -> int:
+    """Minutele idle într‑o sală între începutul zilei și ultima operație."""
+    if not room_schedule:
+        return 0
+    idle = _minutes_between(f"{DAY_START//60:02d}:{DAY_START%60:02d}", room_schedule[0]["start_time"])
+    for prev, cur in zip(room_schedule, room_schedule[1:]):
+        idle += _minutes_between(prev["end_time"], cur["start_time"])
+    return max(idle, 0)
+
+# ————————  VIEW  ————————
 
 @login_required
 def manager_dashboard(request):
-    if request.user.role != "manager":
-        return redirect("calendarapp:calendar")
+    """Vizualizare performantă a rezultatelor algoritmului de planificare."""
+    date_str = request.GET.get("zi") or date.today().strftime("%Y-%m-%d")
 
-    # 📊 Grafic 1: distribuție statusuri
-    status_data = (
-        Event.objects
-        .filter(is_active=True, is_deleted=False)
-        .values("status")
-        .annotate(count=Count("id"))
-    )
-    status_labels = [item["status"].replace("_", " ").capitalize() for item in status_data]
-    status_counts = [item["count"] for item in status_data]
+    # 1️⃣  Rulează optimizarea pentru data selectată
+    timetable = schedule_surgeries(date_str)
 
-    # 📈 Grafic 2: intervenții în ultimele 7 zile
-    today = now().date()
-    last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
-    date_labels = [d.strftime("%d.%m") for d in last_7_days]
-    daily_counts = [
-        Event.objects.filter(
-            is_active=True,
-            is_deleted=False,
-            data_interventie__date=d
-        ).count()
-        for d in last_7_days
-    ]
+    # 2️⃣  KPI globale
+    total_slots = (DAY_END - DAY_START) * (len(timetable) or 1)
+    total_used = sum(r["total_used"] for r in timetable)
+    schedule_eff = round(total_used / total_slots * 100, 1)
+    unscheduled = sum(1 for r in timetable for e in r["schedule"] if e.get("unscheduled"))
 
-    # 🟪 Grafic 3: utilizarea sălilor – se rulează algoritmul
-    today_str = "2025-05-22"  # sau poți folosi today.strftime("%Y-%m-%d")
-    timetable = schedule_surgeries(today_str)
-    sala_labels = [f"Sala {room['room']}" for room in timetable]
-    sala_values = [room["total_used"] for room in timetable]
+    # 3️⃣  Structuri pentru grafice
+    room_labels, room_util_pct = [], []
+    asistenta_counts: Dict[str, int] = {}
+    doctor_counts: Dict[str, int] = {}
+    total_surgery_min = total_clean_min = idle_total = dirty_penalty = 0
 
-    # 🟠 Grafic 4: distribuția duratei (scurte vs. lungi)
-    long_short_data = Event.objects.filter(is_active=True, is_deleted=False).values("timp_estimare")
-    long = sum(1 for row in long_short_data if row["timp_estimare"] > 120)
-    short = sum(1 for row in long_short_data if row["timp_estimare"] <= 120)
-    durata_labels = ["Scurte (< 2h)", "Lungi (> 2h)"]
-    durata_counts = [short, long]
+    for row in timetable:
+        # — sări peste sala de urgență / rezervă dacă așa e marcată
+        if row.get("reserved_emergency"):
+            continue
 
-    # 🟡 Grafic 5: repartizarea intervențiilor pe asistente
-    asistente_data = (
-        Event.objects
-        .filter(is_active=True, is_deleted=False, asistenta_alocata__isnull=False)
-        .values(name=F("asistenta_alocata__first_name"))
-        .annotate(count=Count("id"))
-    )
-    asistenta_labels = [item["name"] for item in asistente_data]
-    asistenta_counts = [item["count"] for item in asistente_data]
+        # — utilizare sală
+        room_labels.append(str(row["room"]))
+        room_util_pct.append(round(row["total_used"] / (DAY_END - DAY_START) * 100, 1))
 
+        # — parcurge intervențiile din sală
+        for ev in row["schedule"]:
+            if ev.get("reserved"):
+                continue
+            total_surgery_min += ev["duration"]
+            total_clean_min += ev["clean_time"]
+            if not ev["is_clean"]:
+                dirty_penalty += DIRTY_CLEAN_GAP
+
+            # încărcare asistentă
+            nurse = ev.get("nurse") or "—"
+            asistenta_counts[nurse] = asistenta_counts.get(nurse, 0) + 1
+            # încărcare doctor
+            doctor = ev.get("doctor") or ev.get("surgeon") or "—"
+            doctor_counts[doctor] = doctor_counts.get(doctor, 0) + 1
+
+        idle_total += _compute_idle(row["schedule"])
+
+    cost_labels = ["idle", "clean", "dirty"]
+    cost_values = [idle_total, total_clean_min, dirty_penalty]
+
+    # 4️⃣  Context pentru template
     context = {
-        # Date pentru grafice
-        "status_labels": status_labels,
-        "status_counts": status_counts,
-        "date_labels": date_labels,
-        "daily_counts": daily_counts,
-        "sala_labels": sala_labels,
-        "sala_values": sala_values,
-        "durata_labels": durata_labels,
-        "durata_counts": durata_counts,
-        "asistenta_labels": asistenta_labels,
-        "asistenta_counts": asistenta_counts,
-
-        # Alte date de stare
-        "running_events": Event.objects.get_running_events(request.user),
-        "upcoming_events": Event.objects.get_upcoming_events(request.user),
-        "completed_events": Event.objects.get_completed_events(request.user).count(),
-        "latest_events": Event.objects.filter(is_active=True, is_deleted=False).order_by("-data_interventie")[:10],
+        "selected_day": datetime.strptime(date_str, "%Y-%m-%d").date(),
+        # KPI
+        "total_surgeries": sum(len(r["schedule"]) for r in timetable),
+        "schedule_efficiency": schedule_eff,
+        "unscheduled_count": unscheduled,
+        "avg_room_utilization": round(np.mean(room_util_pct) if room_util_pct else 0, 1),
+        # Grafice
+        "room_labels": room_labels,
+        "room_util_pct": room_util_pct,
+        "asistenta_labels": list(asistenta_counts.keys()),
+        "asistenta_counts": list(asistenta_counts.values()),
+        "doctor_labels": list(doctor_counts.keys()),
+        "doctor_counts": list(doctor_counts.values()),
+        "cost_labels": cost_labels,
+        "cost_values": cost_values,
+        "time_breakdown": [total_surgery_min, total_clean_min],
     }
 
     return render(request, "calendarapp/dashboard.html", context)

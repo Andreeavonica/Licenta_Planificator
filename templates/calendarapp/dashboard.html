@@ -1,233 +1,234 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}Event Dashboard{% endblock title %}
+{% block title %}Dashboard Scheduling – Pro{% endblock %}
 
 {% block breadcrumb %}
-    <div>
-        <h1><i class="fa fa-dashboard"></i> Dashboard</h1>
-        <p>Event Dashboard</p>
-    </div>
-    <ul class="app-breadcrumb breadcrumb">
-        <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
-        <li class="breadcrumb-item"><a >Dashboard</a></li>
-    </ul>
-{% endblock breadcrumb %}
+<div>
+  <h1 class="text-2xl font-semibold flex items-center gap-2"><i class="fa fa-chart-line"></i> Dashboard Optimizare</h1>
+  <p class="text-sm text-muted">Analiză vizuală a performanței algoritmului de planificare</p>
+</div>
+<ul class="app-breadcrumb breadcrumb">
+  <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
+  <li class="breadcrumb-item">Dashboard</li>
+  <li class="breadcrumb-item">Pro</li>
+</ul>
+{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-6 col-lg-3">
-        <div class="widget-small primary coloured-icon">
-            <i class="icon fa fa-files-o fa-3x"></i>
-            <div class="info">
-                <h4>Total Running Events</h4>
-                <p><b>{{ running_events.count }}</b></p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6 col-lg-3">
-        <div class="widget-small primary coloured-icon">
-            <i class="icon fa fa-clock-o fa-3x"></i>
-            <div class="info">
-                <h4>Total Upcoming Events</h4>
-                <p><b>{{ upcoming_events.count }}</b></p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6 col-lg-3">
-        <div class="widget-small primary coloured-icon">
-            <i class="icon fa fa-thumbs-o-up fa-3x"></i>
-            <div class="info">
-                <h4>Total Completed Events</h4>
-                <p><b>{{ completed_events }}</b></p>
-            </div>
-        </div>
-    </div>
-    <!-- <div class="col-md-6 col-lg-3">
-        <div class="widget-small warning coloured-icon">
-            <i class="icon fa fa-users fa-3x"></i>
-            <div class="info">
-                <h4>Total Participants</h4>
-                <p><b>10</b></p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6 col-lg-3">
-        <div class="widget-small danger coloured-icon">
-            <i class="icon fa fa-star fa-3x"></i>
-            <div class="info">
-                <h4>Stars</h4>
-                <p><b>500</b></p>
-            </div>
-        </div>
-    </div> -->
-  
-    <div class="row mt-4">
-    <div class="col-md-6">
-        <div class="tile">
-            <h4>Status Intervenții</h4>
-            <canvas id="statusChart"></canvas>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="tile">
-            <h4>Intervenții în ultimele 7 zile</h4>
-            <canvas id="dailyChart"></canvas>
-        </div>
-    </div>
-    <div class="col-md-12 mt-4">
-        <div class="tile" style="min-height: 350px;">
-            <h4>Utilizarea sălilor de operație (minute)</h4>
-            <canvas id="salaChart" height="200"></canvas>
-        </div>
-        </div>
+<style>
+  .dashboard-container {
+    background: #f8f9fa;
+    padding: 2rem;
+    border-radius: 16px;
+  }
 
-            <!-- În dashboard.html -->
-        <div class="row mt-4">
-        <div class="col-md-6 col-lg-6">
-            <div class="tile" style="min-height: 350px;">
-            <h4>Distribuție durată intervenții</h4>
-            <canvas id="durataChart" height="200"></canvas>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-6">
-            <div class="tile" style="min-height: 350px;">
-            <h4>Încărcare asistente</h4>
-            <canvas id="asistentaChart" height="200"></canvas>
-            </div>
-        </div>
-        </div>
+  .card {
+    border: none;
+    background: #ffffff;
+    transition: transform 0.2s ease;
+  }
 
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  }
 
+  .tile {
+    background: #ffffff;
+    border-radius: 20px;
+  }
 
+  h5 {
+    color: #343a40;
+    font-weight: 600;
+  }
 
+  .form-control {
+    border-radius: 10px;
+  }
+
+  .btn-primary {
+    background-color: #1b6ca8;
+    border-color: #1b6ca8;
+    border-radius: 10px;
+  }
+</style>
+
+<div class="dashboard-container">
+  <form method="get" class="mb-6 flex items-end gap-3">
+    <div>
+      <label class="form-label">Ziua analizată</label>
+      <input type="date" name="zi" value="{{ selected_day|date:'Y-m-d' }}" class="form-control">
+    </div>
+    <button class="btn btn-primary" type="submit"><i class="fa fa-sync-alt me-1"></i>Actualizează</button>
+  </form>
+
+  <!-- KPI CARDS -->
+  <div class="row g-4 mb-5">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm p-3 rounded-3 text-center h-100">
+        <p class="text-muted mb-1">Total intervenții</p>
+        <h2 class="fw-bold">{{ total_surgeries }}</h2>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm p-3 rounded-3 text-center h-100">
+        <p class="text-muted mb-1">Rată programare</p>
+        <h2 class="fw-bold">{{ schedule_efficiency }}<span class="small">%</span></h2>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm p-3 rounded-3 text-center h-100">
+        <p class="text-muted mb-1">Operații neprogramate</p>
+        <h2 class="fw-bold text-danger">{{ unscheduled_count }}</h2>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm p-3 rounded-3 text-center h-100">
+        <p class="text-muted mb-1">Utilizare săli</p>
+        <h2 class="fw-bold">{{ avg_room_utilization }}<span class="small">%</span></h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS GRID -->
+  <div class="tile p-4 rounded-4 shadow-sm">
+    <div class="row g-5">
+      <div class="col-lg-6">
+        <h5 class="text-center mb-2">Utilizare săli (%)</h5>
+        <canvas id="roomUtilChart" height="220"></canvas>
+      </div>
+      <div class="col-lg-6">
+        <h5 class="text-center mb-2">Încărcare asistente (sarcini)</h5>
+        <canvas id="nurseLoadChart" height="220"></canvas>
+      </div>
+      <div class="col-lg-6">
+        <h5 class="text-center mb-2">Încărcare doctori (sarcini)</h5>
+        <canvas id="doctorLoadChart" height="220"></canvas>
+      </div>
+      <div class="col-lg-6">
+        <h5 class="text-center mb-2">Costuri algoritm (componentă)</h5>
+        <canvas id="costChart" height="220"></canvas>
+      </div>
+      <div class="col-lg-6">
+        <h5 class="text-center mb-2">Timp chirurgie vs curățare</h5>
+        <canvas id="timeBreakChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
 </div>
-{% endblock content %}
+{% endblock %}
 
 {% block extrascripts %}
-  <script type="text/javascript" src="{% static 'js/plugins/jquery.dataTables.min.js' %}"></script>
-  <script type="text/javascript" src="{% static 'js/plugins/dataTables.bootstrap.min.js' %}"></script>
-  <script type="text/javascript">
-      $('#sampleTable').DataTable();
-  </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script>
+Chart.defaults.font.family = "Roboto, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.register(ChartDataLabels);
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-      const statusCtx = document.getElementById('statusChart').getContext('2d');
-      const statusChart = new Chart(statusCtx, {
-          type: 'pie',
-          data: {
-              labels: {{ status_labels|safe }},
-              datasets: [{
-                  label: 'Număr intervenții',
-                  data: {{ status_counts|safe }},
-                  backgroundColor: ['#17a2b8', '#28a745', '#ffc107', '#dc3545']
-              }]
-          },
-          options: {
-              responsive: true,
-              plugins: {
-                  legend: { position: 'bottom' }
-              }
-          }
-      });
+const palette = ["#1b6ca8", "#51a3a3", "#f7c548", "#f55c47", "#8338ec", "#06d6a0", "#ff6b6b"];
+const legendBottom = {plugins:{legend:{position:"bottom",labels:{boxWidth:12,padding:10}}}};
 
-      const dailyCtx = document.getElementById('dailyChart').getContext('2d');
-      const dailyChart = new Chart(dailyCtx, {
-          type: 'bar',
-          data: {
-              labels: {{ date_labels|safe }},
-              datasets: [{
-                  label: 'Intervenții pe zi',
-                  data: {{ daily_counts|safe }},
-                  backgroundColor: '#007bff'
-              }]
-          },
-          options: {
-              responsive: true,
-              scales: {
-                  y: {
-                      beginAtZero: true,
-                      ticks: {
-                          stepSize: 1
-                      }
-                  }
-              }
-          }
-      });
-
-    const salaCtx = document.getElementById('salaChart').getContext('2d');
-    const salaChart = new Chart(salaCtx, {
-        type: 'bar',
-        data: {
-            labels: {{ sala_labels|safe }},
-            datasets: [{
-                label: 'Timp utilizat (minute)',
-                data: {{ sala_values|safe }},
-                backgroundColor: '#6f42c1'
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Minute'
-                    }
-                }
-            }
-        }
-    });
-
-    const asistentaCtx = document.getElementById('asistentaChart').getContext('2d');
-const asistentaChart = new Chart(asistentaCtx, {
-    type: 'bar',
-    data: {
-        labels: {{ asistenta_labels|safe }},
-        datasets: [{
-            label: 'Număr intervenții',
-            data: {{ asistenta_counts|safe }},
-            backgroundColor: '#ffc107'
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
+// ### Utilizare săli (%)
+new Chart("roomUtilChart", {
+  type:"bar",
+  data:{
+    labels: {{ room_labels|safe }},
+    datasets:[{
+      label:"% ocupare",
+      data: {{ room_util_pct|safe }},
+      backgroundColor: palette[0]
+    }]
+  },
+  options:{
+    ...legendBottom,
+    scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+"%"}}},
+    plugins:{
+      datalabels:{
+        anchor:"end",align:"top",formatter:v=>v+"%"
+      }
     }
+  }
 });
 
-// În blocul <script>
-const durataCtx = document.getElementById('durataChart').getContext('2d');
-const durataChart = new Chart(durataCtx, {
-    type: 'doughnut',
-    data: {
-        labels: {{ durata_labels|safe }},
-        datasets: [{
-            data: {{ durata_counts|safe }},
-            backgroundColor: ['#20c997', '#fd7e14']
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: { position: 'bottom' }
-        }
-    }
+// ### Încărcare asistente
+new Chart("nurseLoadChart", {
+  type:"bar",
+  data:{
+    labels: {{ asistenta_labels|safe }},
+    datasets:[{
+      label:"Intervenții/asistentă",
+      data: {{ asistenta_counts|safe }},
+      backgroundColor: palette[2]
+    }]
+  },
+  options:{
+    ...legendBottom,
+    scales:{y:{beginAtZero:true}},
+    plugins:{datalabels:{anchor:"end",align:"top"}}
+  }
 });
 
+// ### Încărcare doctori
+new Chart("doctorLoadChart", {
+  type:"bar",
+  data:{
+    labels: {{ doctor_labels|safe }},
+    datasets:[{
+      label:"Intervenții/doctor",
+      data: {{ doctor_counts|safe }},
+      backgroundColor: palette[4]
+    }]
+  },
+  options:{
+    ...legendBottom,
+    scales:{y:{beginAtZero:true}},
+    plugins:{datalabels:{anchor:"end",align:"top"}}
+  }
+});
 
-  </script>
-{% endblock extrascripts %}
+// ### Breakdown costuri
+new Chart("costChart", {
+  type:"bar",
+  data:{
+    labels: {{ cost_labels|safe }},
+    datasets:[{
+      label:"Cost (unități)",
+      data: {{ cost_values|safe }},
+      backgroundColor: palette.slice(0, {{ cost_labels|length }})
+    }]
+  },
+  options:{
+    ...legendBottom,
+    scales:{y:{beginAtZero:true}},
+    plugins:{
+      datalabels:{anchor:"end",align:"top"}
+    }
+  }
+});
+
+// ### Timp chirurgie vs curățare
+new Chart("timeBreakChart", {
+  type:"doughnut",
+  data:{
+    labels:["Chirurgie","Curățare"],
+    datasets:[{
+      data: {{ time_breakdown|safe }},
+      backgroundColor:[palette[1],palette[3]]
+    }]
+  },
+  options:{
+    ...legendBottom,
+    plugins:{
+      datalabels:{formatter:(v,ctx)=>{
+        const total=ctx.chart._metasets[0].total;
+        const pct=(v/total*100).toFixed(0)+"%";
+        return pct;
+      }}
+    }
+  }
+});
+</script>
+{% endblock %}
