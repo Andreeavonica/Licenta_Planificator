@@ -299,6 +299,9 @@ def confirm_schedule(request):
 
         for room in data.get("room_allocations", []):
             for surgery in room.get("schedule", []):
+                if "start_time" not in surgery or "end_time" not in surgery:
+                    continue
+
                 try:
                     event = Event.objects.get(id=surgery["id"])
 
@@ -709,3 +712,32 @@ def pacientii_asistentei(request):
         "pacienti": enriched,
         "tip": "asistenta"
     })
+
+@csrf_exempt
+@login_required
+def move_bulk_to_next_day(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        ids = data.get("ids", [])
+        moved = 0
+
+        for eid in ids:
+            try:
+                ev = Event.objects.get(id=eid)
+                next_date = ev.data_interventie + timedelta(days=1)
+                while next_date.weekday() >= 5:  # Sari sâmbătă/duminică
+                    next_date += timedelta(days=1)
+                ev.data_interventie = next_date
+                ev.save()
+
+                Notification.objects.create(
+                    user=ev.user,
+                    message=f"Operația pacientului {ev.nume_pacient} a fost mutată pentru {next_date.strftime('%d.%m.%Y')}."
+                )
+                moved += 1
+            except Event.DoesNotExist:
+                continue
+
+        return JsonResponse({"message": f"{moved} operații mutate pentru ziua următoare."})
+
+    return JsonResponse({"error": "Invalid method"}, status=405)

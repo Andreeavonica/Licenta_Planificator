@@ -147,6 +147,8 @@ def next_slot(start: int, dur: int, intervals: List[Tuple[int, int]]) -> Optiona
 
 
 def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], nurse_alloc: List[int], nurses: List[str]) -> tuple[list[dict], float]:
+    unscheduled = 0
+    unscheduled_events = []
     n_rooms = len(rooms)
     room_free: List[int] = [DAY_START] * n_rooms
     room_dirty: List[bool] = [False] * n_rooms
@@ -194,6 +196,14 @@ def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], n
 
         if chosen_room is None:
             unscheduled += 1
+            unscheduled_events.append({
+                "id": int(s.get("id", 0)),
+                "type": s.get("type", "-"),
+                "duration": int(s.get("duration", 0)),
+                "surgeon": s.get("surgeon", "-"),
+                "patient": s.get("patient", "-"),
+                "unscheduled": True
+            })
             continue
 
         end_time = chosen_start + dur
@@ -243,6 +253,13 @@ def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], n
             "schedule": sched,
             "total_used": (room_free[r_idx] - DAY_START) if room_used[r_idx] else 0
         })
+    if unscheduled_events:
+            timetable.append({
+                "room": "neplanificate",
+                "schedule": unscheduled_events,
+                "total_used": 0
+     })
+
     std_nurse = np.std(nurse_use_count)
     total_cost = (
         cost_idle + cost_clean + cost_late +
@@ -482,7 +499,7 @@ def schedule_surgeries(selected_date: str):
             }
         )
         # ordonează rândurile după numărul sălii, ca să păstrezi afișarea firească
-        timetable.sort(key=lambda x: x["room"])
+        timetable.sort(key=lambda x: (9999 if isinstance(x["room"], str) else int(x["room"])))
 
     
     
