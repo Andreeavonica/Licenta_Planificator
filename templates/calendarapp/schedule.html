@@ -311,6 +311,17 @@ document.addEventListener("DOMContentLoaded",()=>{
     }
   });
 });
+window.addEventListener("DOMContentLoaded", () => {
+  const savedData = sessionStorage.getItem("lastScheduleData");
+  const savedDate = sessionStorage.getItem("lastScheduleDate");
+
+  if (savedData && savedDate) {
+    const parsed = JSON.parse(savedData);
+    document.getElementById("selectedDate").value = savedDate;
+    drawTimeline(parsed);
+    lastScheduleData = parsed;
+  }
+});
 
 function confirmSchedule(){
   if(!lastScheduleData){ alert("Trebuie să generezi o planificare mai întâi!"); return; }
