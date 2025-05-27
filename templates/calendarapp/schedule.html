@@ -299,16 +299,24 @@ function drawTimeline(data){
     row.style.alignItems = "center";
     row.style.gap = "10px";
     row.style.marginTop = "10px";
-    row.style.height = "70px";
-    row.style.border = "2px dashed #ff6b6b";
-    row.style.padding = "10px";
-    row.style.background = "#fff";
+    row.style.minHeight = "100px";
+    row.style.border = "1px solid #dee2e6";
+    row.style.padding = "16px 20px";
+    row.style.background = "#f8f9fa";
+    row.style.borderRadius = "8px";
+    row.style.boxShadow = "0 3px 6px rgba(0, 0, 0, 0.06)";
+    row.style.flexWrap = "wrap"; // Permite trecerea pe rânduri dacă sunt multe
+    row.style.justifyContent = "flex-start";
+
 
     unscheduled.forEach(ev => {
       const div = document.createElement("div");
       div.className = "surgery";
       div.style.position = "relative";
-      div.style.backgroundColor = "#ff6b6b";
+      div.style.backgroundColor = "#e03131";
+      div.style.color = "#fff";
+      div.style.borderLeft = "4px solid #fff";
+
       div.style.minWidth = "200px";
       div.innerHTML = `
         <div><strong>${ev.type}</strong></div>
@@ -322,7 +330,10 @@ function drawTimeline(data){
 
     const btn = document.createElement("button");
     btn.textContent = "📆 Planifică urgent în ziua lucrătoare următoare";
-    btn.className = "btn btn-outline-danger mt-3";
+    btn.className = "btn btn-outline-primary mt-3";
+    btn.style.borderRadius = "4px";
+    btn.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
+    btn.style.fontWeight = "500";
     btn.onclick = () => moveUnscheduledToNextDay(unscheduled);
     unschedBox.appendChild(btn);
   }
