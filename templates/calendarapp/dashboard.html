@@ -114,38 +114,61 @@ document.addEventListener("DOMContentLoaded", () => {
   let clean_total = 0, dirty_penalty = 0;
 
   timetable.forEach(room => {
-    if (room.reserved_emergency) return;  // 🛑 exclude sala de urgență
-    const roomName = "Sală " + room.room;
+  // ✅ Nu excludem nimic – analizăm și sala „neplanificate”
+  const roomName = typeof room.room === "string" ? room.room : "Sală " + room.room;
+  if (room.room !== "neplanificate" && room.room !== "neplanificată") {
     room_labels.push(roomName);
-    let used = 0, idle = 0, lastEnd = DAY_START;
-    room.schedule.forEach(ev => {
-      const [sh, sm] = ev.start_time.split(":").map(Number);
-      const [eh, em] = ev.end_time.split(":").map(Number);
-      const start = sh * 60 + sm;
-      const end = eh * 60 + em;
-      used += (end - start);
-      idle += Math.max(0, start - lastEnd);
-      lastEnd = end;
+  }
 
-      totalSurgeries++;
-      if (ev.unscheduled) unscheduledCount++;
-      clean_total += ev.clean_time || 0;
-      if (!ev.is_clean) dirty_penalty += 15;
+  let used = 0, idle = 0, lastEnd = DAY_START;
 
-      asistenta_counts[ev.nurse || "-"] = (asistenta_counts[ev.nurse || "-"] || 0) + 1;
-      doctor_counts[ev.surgeon || "-"] = (doctor_counts[ev.surgeon || "-"] || 0) + 1;
-    });
-    idle += Math.max(0, DAY_END - lastEnd);
-    idle_per_room.push(idle);
+  room.schedule.forEach(ev => {
+    if (ev.unscheduled) unscheduledCount++;
+
+    if (!ev.start_time || !ev.end_time) return;
+
+    const [sh, sm] = ev.start_time.split(":").map(Number);
+    const [eh, em] = ev.end_time.split(":").map(Number);
+    const start = sh * 60 + sm;
+    const end = eh * 60 + em;
+    used += (end - start);
+    idle += Math.max(0, start - lastEnd);
+    lastEnd = end;
+
+    totalSurgeries++;
+    clean_total += ev.clean_time || 0;
+    if (!ev.is_clean) dirty_penalty += 30;
+
+    asistenta_counts[ev.nurse || "-"] = (asistenta_counts[ev.nurse || "-"] || 0) + 1;
+    doctor_counts[ev.surgeon || "-"] = (doctor_counts[ev.surgeon || "-"] || 0) + 1;
+  });
+
+  idle += Math.max(0, DAY_END - lastEnd);
+  idle_per_room.push(idle);
+  if (room.room !== "neplanificate" && room.room !== "neplanificată") {
     room_util_pct.push(Math.round((used / (DAY_END - DAY_START)) * 100));
     totalUsedMinutes += used;
     totalSlots += (DAY_END - DAY_START);
-  });
+  }
+});
+
 
   document.getElementById("kpi-cards").style.display = "flex";
   document.getElementById("charts-block").style.display = "block";
   document.getElementById("totalSurgeries").textContent = totalSurgeries;
-  document.getElementById("avgUtil").textContent = ((totalUsedMinutes / totalSlots) * 100).toFixed(1) + "%";
+  let totalRequested = 0, totalScheduled = 0;
+
+  timetable.forEach(room => {
+    if (room.reserved_emergency) return;
+    room.schedule.forEach(ev => {
+      if (ev.reserved) return;
+      totalRequested++;
+      if (!ev.unscheduled) totalScheduled++;
+    });
+  });
+
+  const rataPlanificare = totalRequested ? Math.round((totalScheduled / totalRequested) * 100) : 0;
+  document.getElementById("avgUtil").textContent = rataPlanificare + "%";
   document.getElementById("unscheduledCount").textContent = unscheduledCount;
   document.getElementById("avgRoomUtil").textContent = (room_util_pct.reduce((a,b)=>a+b,0)/room_util_pct.length).toFixed(1) + "%";
 
