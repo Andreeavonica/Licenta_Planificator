@@ -114,6 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let clean_total = 0, dirty_penalty = 0;
 
   timetable.forEach(room => {
+    if (room.reserved_emergency) return;  // 🛑 exclude sala de urgență
     const roomName = "Sală " + room.room;
     room_labels.push(roomName);
     let used = 0, idle = 0, lastEnd = DAY_START;
