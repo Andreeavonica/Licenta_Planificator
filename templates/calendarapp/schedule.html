@@ -172,6 +172,9 @@ function runSchedule(){
       }
       lastScheduleData=data;
       drawTimeline(data);
+      sessionStorage.setItem("lastScheduleDate", selectedDate);
+      sessionStorage.setItem("lastScheduleData", JSON.stringify(data));
+
     })
     .catch(err=>{
       document.getElementById("timeline-body").innerHTML=

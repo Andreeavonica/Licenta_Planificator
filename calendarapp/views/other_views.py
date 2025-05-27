@@ -1,5 +1,3 @@
-
-
 from django.shortcuts import render, redirect
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views import generic
@@ -273,7 +271,7 @@ def next_day(request, event_id):
         return JsonResponse({"message": "Success!"})
     else:
         return JsonResponse({"message": "Error!"}, status=400)
-    
+
 
 
 from calendarapp.optimization import schedule_surgeries
@@ -287,7 +285,7 @@ def run_schedule(request):
         return JsonResponse({"room_allocations": result})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
-    
+
 def schedule_page(request):
     return render(request, "calendarapp/schedule.html")
 
@@ -357,7 +355,7 @@ def confirm_schedule(request):
         return JsonResponse({"message": "Planificarea a fost confirmată și salvată cu succes!"})
     else:
         return JsonResponse({"error": "Invalid request"}, status=400)
-    
+
 def schedule_page(request):
     time_labels = [
         "08", "08.5", "09", "09.5", "10", "10.5",
@@ -584,14 +582,19 @@ def _compute_idle(room_schedule: List[Dict]) -> int:
 
 @login_required
 def manager_dashboard(request):
+    """Vizualizare performantă a rezultatelor algoritmului de planificare."""
     date_str = request.GET.get("zi") or date.today().strftime("%Y-%m-%d")
+
+    # 1️⃣  Rulează optimizarea pentru data selectată
     timetable = schedule_surgeries(date_str)
 
+    # 2️⃣  KPI globale
     total_slots = (DAY_END - DAY_START) * (len(timetable) or 1)
     total_used = sum(r["total_used"] for r in timetable)
     schedule_eff = round(total_used / total_slots * 100, 1)
     unscheduled = sum(1 for r in timetable for e in r["schedule"] if e.get("unscheduled"))
 
+    # 3️⃣  Structuri pentru grafice
     room_labels, room_util_pct = [], []
     asistenta_counts: Dict[str, int] = {}
     doctor_counts: Dict[str, int] = {}
@@ -599,10 +602,13 @@ def manager_dashboard(request):
     idle_per_room = []
 
     for row in timetable:
+        # — sări peste sala de urgență / rezervă dacă așa e marcată
         if row.get("reserved_emergency"):
             continue
 
+        # — utilizare sală
         room_labels.append(str(row["room"]))
+        room_util_pct.append(round(row["total_used"] / (DAY_END - DAY_START) * 100, 1))
         util_pct = round(row["total_used"] / (DAY_END - DAY_START) * 100, 1)
         room_util_pct.append(util_pct)
 
@@ -610,6 +616,7 @@ def manager_dashboard(request):
         idle_per_room.append(room_idle)
         idle_total += room_idle
 
+        # — parcurge intervențiile din sală
         for ev in row["schedule"]:
             if ev.get("reserved"):
                 continue
@@ -618,21 +625,28 @@ def manager_dashboard(request):
             if not ev["is_clean"]:
                 dirty_penalty += DIRTY_CLEAN_GAP
 
+            # încărcare asistentă
             nurse = ev.get("nurse") or "—"
             asistenta_counts[nurse] = asistenta_counts.get(nurse, 0) + 1
+            # încărcare doctor
 
             doctor = ev.get("doctor") or ev.get("surgeon") or "—"
             doctor_counts[doctor] = doctor_counts.get(doctor, 0) + 1
 
+        idle_total += _compute_idle(row["schedule"])
+
     cost_labels = ["idle", "clean", "dirty"]
     cost_values = [idle_total, total_clean_min, dirty_penalty]
 
+    # 4️⃣  Context pentru template
     context = {
         "selected_day": datetime.strptime(date_str, "%Y-%m-%d").date(),
+        # KPI
         "total_surgeries": sum(len(r["schedule"]) for r in timetable),
         "schedule_efficiency": schedule_eff,
         "unscheduled_count": unscheduled,
         "avg_room_utilization": round(np.mean(room_util_pct) if room_util_pct else 0, 1),
+        # Grafice
         "room_labels": room_labels,
         "room_util_pct": room_util_pct,
         "asistenta_labels": list(asistenta_counts.keys()),
