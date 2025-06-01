@@ -203,13 +203,15 @@ function buildTimeHeader(){
 }
 
 function drawTimeline(data){
+
   const body = document.getElementById("timeline-body");
   body.innerHTML = "";
   body.appendChild(buildTimeHeader());
 
   const INTERVALS = 18;
+  const roomsToShow = data.room_allocations.filter(r => r.room !== "neplanificate");
 
-  data.room_allocations.forEach(room => {
+  roomsToShow.forEach(room => {
     const row = document.createElement("div");
     row.className = "timeline-row";
 
