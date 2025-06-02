@@ -730,6 +730,8 @@ def move_bulk_to_next_day(request):
                 while next_date.weekday() >= 5:  # Sari sâmbătă/duminică
                     next_date += timedelta(days=1)
                 ev.data_interventie = next_date
+                ev.prioritate = min(ev.prioritate + 1, 3)
+
                 ev.save()
 
                 Notification.objects.create(

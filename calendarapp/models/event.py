@@ -110,7 +110,17 @@ class Event(EventAbstract):
         default="checked_in",
         verbose_name="Stadiu Intervenție (Live)"
     )
-
+    PRIORITY_CHOICES = (
+    (1, "Scăzută"),
+    (2, "Normală"),     # DEFAULT
+    (3, "Înaltă"),
+)
+    prioritate = models.PositiveSmallIntegerField(
+        choices=PRIORITY_CHOICES, default=2
+    )
+    justificare_prioritate = models.CharField(
+        max_length=120, blank=True, null=True
+    )
 
 
     objects = EventManager()

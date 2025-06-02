@@ -25,6 +25,7 @@ from django import forms
 from calendarapp.models.event import Event, Pacient
 
 class EventForm(forms.ModelForm):
+    # (păstrezi câmpul existent de selecție pacient)
     pacient_selectat = forms.ModelChoiceField(
         queryset=Pacient.objects.none(),
         required=False,
@@ -35,9 +36,11 @@ class EventForm(forms.ModelForm):
     class Meta:
         model = Event
         fields = [
-            "nume_pacient",                  # completat automat
-            "pacient_selectat",              # doar pentru selecție
+            "nume_pacient",
+            "pacient_selectat",
             "tip_operatie",
+            "prioritate",                # ⬅️  nou
+            "justificare_prioritate",    # ⬅️  nou
             "constrangeri_speciale",
             "timp_estimare",
             "data_interventie",
@@ -48,23 +51,37 @@ class EventForm(forms.ModelForm):
         widgets = {
             "nume_pacient": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
             "tip_operatie": forms.Select(attrs={"class": "form-control"}),
+            "prioritate":   forms.Select(attrs={"class": "form-select"}),
+            "justificare_prioritate": forms.TextInput(attrs={"class": "form-control",
+                                                             "placeholder": "Necesar doar pentru Prioritate Înaltă"}),
             "constrangeri_speciale": forms.Textarea(attrs={"class": "form-control"}),
             "timp_estimare": forms.NumberInput(attrs={"class": "form-control"}),
             "data_interventie": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
             "observatii": forms.Textarea(attrs={"class": "form-control"}),
         }
 
+    # —————————— constructor ——————————
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+
         self.fields["data_interventie"].input_formats = ("%Y-%m-%dT%H:%M",)
 
+        # Populează doar pacienții chirurgului curent
         if user:
             self.fields["pacient_selectat"].queryset = Pacient.objects.filter(
                 chirurg=user, status="neprogramat"
-    )
+            )
 
-
+    # —————————— validare ——————————
+    def clean(self):
+        cleaned = super().clean()
+        prio = cleaned.get("prioritate")
+        just = cleaned.get("justificare_prioritate", "")
+        if prio == 3 and not just.strip():
+            self.add_error("justificare_prioritate",
+                           "Trebuie să completați justificarea pentru Prioritate Înaltă.")
+        return cleaned
 
 
 

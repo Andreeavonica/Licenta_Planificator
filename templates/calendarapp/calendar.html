@@ -4,6 +4,7 @@
 
 {% block extracss %}
   <link href="{% static 'calender/main.css' %}" rel="stylesheet" />
+
   <style>
     
     .btn-group-status button {
@@ -155,8 +156,77 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+.modal-body-scrollable {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+.modal-footer-sticky {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  z-index: 100;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid #dee2e6;
+}
+.form-icon-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+.form-icon-group i {
+  color: #009688; /* verdele tău custom */
+  font-size: 1.2rem;
+  width: 24px;
+}
 
-  </style>
+.form-icon-group label {
+  width: 150px;
+  margin-bottom: 0;
+  font-weight: 500;
+}
+.form-icon-group input,
+.form-icon-group select,
+.form-icon-group textarea,
+.form-icon-group .priority-buttons {
+  flex: 1;
+}
+
+.priority-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.priority-buttons .btn {
+  flex: 1;
+  border-radius: 8px;
+  font-weight: 500;
+  border: 1px solid #009688;
+  background-color: white;
+  color: #009688;
+  transition: all 0.3s ease;
+}
+
+.priority-buttons .btn.active,
+.priority-buttons .btn:hover {
+  background-color: #009688;
+  color: white;
+}
+
+#wrap_justificare textarea,
+#wrap_justificare input {
+  width: 100%;
+  border-radius: 5px;
+  border: 1px solid #ced4da;
+  padding: 6px 10px;
+}
+
+
+</style>
 {% endblock extracss %}
 
 {% block breadcrumb %}
@@ -232,37 +302,74 @@
               <button id="modalClose1" type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <form method="post">
-              {% csrf_token %}
-              <div class="form-group">
-                <label>Data Intervenției:</label>{{ form.data_interventie }}
+            {% csrf_token %}
+            <div class="modal-body modal-body-scrollable">
+              <div class="form-icon-group">
+                <i class="fa fa-calendar"></i>
+                <label>Data Intervenției:</label>
+                {{ form.data_interventie }}
               </div>
-              <div class="form-group">
+
+              <div class="form-icon-group">
+                <i class="fa fa-user-plus"></i>
                 <label>Selectează pacient:</label>
                 {{ form.pacient_selectat }}
               </div>
-              
-              <div class="form-group">
+
+              <div class="form-icon-group">
+                <i class="fa fa-user"></i>
                 <label>Nume pacient:</label>
                 {{ form.nume_pacient }}
               </div>
-                   
-              <div class="form-group">
-                <label>Tip Operație:</label>{{ form.tip_operatie }}
+
+              <div class="form-icon-group">
+                <i class="fa fa-stethoscope"></i>
+                <label>Tip Operație:</label>
+                {{ form.tip_operatie }}
               </div>
-              <div class="form-group">
-                <label>Alergii:</label>{{ form.constrangeri_speciale }}
+
+              <div class="form-icon-group">
+                <i class="fa fa-exclamation-triangle"></i>
+                <label>Prioritate:</label>
+                <div class="priority-buttons" id="priorityOptions">
+                  <button type="button" class="btn btn-prio" data-value="1">Normală</button>
+                  <button type="button" class="btn btn-prio" data-value="2">Ridicată</button>
+                  <button type="button" class="btn btn-prio" data-value="3">Urgentă</button>
+                </div>
+                {{ form.prioritate.as_hidden }}
               </div>
-              <div class="form-group">
-                <label>Timp Estimat (minute):</label>{{ form.timp_estimare }}
+
+              <div class="form-icon-group" id="wrap_justificare" style="display:none;">
+                <i class="fa fa-comment"></i>
+                {{ form.justificare_prioritate.label_tag }}
+                {{ form.justificare_prioritate }}
               </div>
-              <div class="form-group">
-                <label>Observații:</label>{{ form.observatii }}
+
+              <div class="form-icon-group">
+                <i class="fa fa-heartbeat"></i>
+                <label>Alergii:</label>
+                {{ form.constrangeri_speciale }}
               </div>
-              <div class="modal-footer">
-                <button id="modalClose2" type="button" class="btn btn-danger">Închide</button>
-                <button type="submit" class="btn btn-primary">Salvează</button>
+
+              <div class="form-icon-group">
+                <i class="fa fa-clock-o"></i>
+                <label>Timp Estimat (minute):</label>
+                {{ form.timp_estimare }}
               </div>
-            </form>
+
+              <div class="form-icon-group">
+                <i class="fa fa-clipboard"></i>
+                <label>Observații:</label>
+                {{ form.observatii }}
+              </div>
+
+            </div>
+            <div class="modal-footer modal-footer-sticky">
+              <button id="modalClose2" type="button" class="btn btn-danger">Închide</button>
+              <button type="submit" class="btn btn-primary">💾 Salvează</button>
+            </div>
+          </form>
+              
           </div>
         </div>
       </div>
@@ -587,6 +694,43 @@ boardSocket.onmessage = function(e) {
 boardSocket.onclose = function() {
   console.warn("WebSocket s-a închis.");
 };
+document.addEventListener("DOMContentLoaded", () => {
+  const prioSelect = document.getElementById("id_prioritate");
+  const prioBtns = document.querySelectorAll(".btn-prio");
+  const justWrap = document.getElementById("wrap_justificare");
+  const justInp  = document.getElementById("id_justificare_prioritate");
+
+  function toggleJustificare() {
+    if (prioSelect.value === "3") {
+      justWrap.style.display = "";
+    } else {
+      justWrap.style.display = "none";
+      if (justInp) justInp.value = "";
+    }
+  }
+
+  function syncPriorityUI() {
+    prioBtns.forEach(btn => {
+      btn.classList.remove("active");
+      if (btn.dataset.value === prioSelect.value) {
+        btn.classList.add("active");
+      }
+    });
+  }
+
+  // click pe butoane → setează selectul + sincronizează + arată justificarea
+  prioBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      prioSelect.value = btn.dataset.value;
+      syncPriorityUI();
+      toggleJustificare();
+    });
+  });
+
+  // sincronizare inițială
+  syncPriorityUI();
+  toggleJustificare();
+});
 
 </script>
 {% endblock extrascripts %}
