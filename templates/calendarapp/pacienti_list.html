@@ -7,8 +7,47 @@
 .prio-1 { color:#09921e; }     /* Scăzută  */
 .prio-2 { color:#c1ae07; font-weight:600; }  /* Normală  */
 .prio-3 { color:#c30000; font-weight:700; }  /* Urgentă  */
+/* Stiluri pentru formularul de adăugare pacient */
+.form-icon-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+.form-icon-group i {
+  color: #009688;     
+  font-size: 1.2rem;
+  width: 24px;
+}
+.form-icon-group label {
+  width: 150px;
+  margin-bottom: 0;
+  font-weight: 500;
+}
+.form-icon-group input,
+.form-icon-group select,
+.form-icon-group textarea {
+  flex: 1;
+  border-radius: 5px;
+  border: 1px solid #ced4da;
+  padding: 6px 10px;
+}
+.modal-body-scrollable {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+.modal-footer-sticky {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  z-index: 100;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid #dee2e6;
+}
+</style>
 
- </style>
  {% endblock extracss %}
 
 {% block breadcrumb %}
@@ -186,14 +225,48 @@
             <span aria-hidden="true">&times;</span>
           </button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body modal-body-scrollable">
           {% csrf_token %}
-          {{ form.as_p }}
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Renunță</button>
-          <button type="submit" class="btn btn-success">Salvează</button>
-        </div>
+          <div class="form-icon-group">
+            <i class="fa fa-user"></i>
+            <label for="id_nume">Nume:</label>
+            {{ form.nume_complet }}
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-id-card"></i>
+            <label for="id_cnp">CNP:</label>
+            {{ form.cnp }}
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-venus-mars"></i>
+            <label for="id_sex">Sex:</label>
+            {{ form.sex }}
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-phone"></i>
+            <label for="id_telefon">Telefon:</label>
+            {{ form.telefon }}
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-home"></i>
+            <label for="id_adresa">Adresă:</label>
+            {{ form.adresa }}
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-calendar"></i>
+            <label for="id_data_nasterii">Data nașterii:</label>
+            {{ form.data_nasterii }}
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-notes-medical"></i>
+            <label for="id_istoric_medical">Istoric medical:</label>
+            {{ form.istoric_medical }}
+          </div>
+      </div>
+        <div class="modal-footer modal-footer-sticky">
+            <button id="modalClose2" type="button" class="btn btn-danger">Închide</button>
+            <button type="submit" class="btn btn-primary">💾 Salvează</button>
+          </div>
       </form>
     </div>
   </div>
