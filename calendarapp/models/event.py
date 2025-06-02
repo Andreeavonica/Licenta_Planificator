@@ -49,9 +49,18 @@ class Operatie(models.Model):
     Laparoscopic = models.BooleanField(default=False)
     OperatieCurata = models.BooleanField(default=True)
     NecesitaIntubare = models.BooleanField(default=True)
+    GRAD_COMPLEXITATE = (
+        (1, "Scăzută"),
+        (2, "Medie"),
+        (3, "Înaltă"),
+    )
+    grad_complexitate = models.PositiveSmallIntegerField(
+        choices=GRAD_COMPLEXITATE, default=1
+    )
 
     def __str__(self):
         return self.Nume
+    
 
 
 class Event(EventAbstract):

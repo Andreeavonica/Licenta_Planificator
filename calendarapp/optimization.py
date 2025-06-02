@@ -35,6 +35,9 @@ UNSCHEDULED_PENALTY = 10_000      # penalizare „hard”
 RESERVED_EMERGENCY_ROOMS = 0      # săli rezervate pentru urgențe
 UNUSED_ROOM_PENALTY = 50          # penalizare pentru săli neutilizate
 EARLY_LONG_SURGERY_BONUS = -20    # bonus pentru programarea devreme a operațiilor lungi (>2h)
+COMPLEXITY_LATE_COEFF = 0.25     # ajustează după nevoi
+COMPLEXITY_EARLY_BONUS = -20
+
 
 # =====================
 # —— ACCES SQLITE ——
@@ -61,7 +64,7 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
     SELECT e.id, e.nume_pacient, o.Nume, e.timp_estimare,
            e.data_interventie, e.user_id,
            u.first_name, u.last_name,
-           o.Laparoscopic, o.OperatieCurata, o.NecesitaIntubare
+           o.Laparoscopic, o.OperatieCurata, o.NecesitaIntubare, o.grad_complexitate
     FROM calendarapp_event   e
     JOIN calendarapp_operatie o ON e.tip_operatie_id = o.id
     JOIN accounts_user u ON e.user_id = u.id
@@ -95,6 +98,8 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
             "laparoscopic": bool(s[8]),
             "curata": bool(s[9]),
             "intubare": bool(s[10]),
+            "complexity": int(s[11] or 1),
+
             "is_long": s[3] > 120,
         }
         for s in surgeries
@@ -174,8 +179,8 @@ def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], n
         for r_idx, room in enumerate(rooms):
             if not is_room_compatible(room, s):
                 continue
-            if room_dirty[r_idx] and s["curata"]:
-                continue
+           
+
             start_candidate = room_free[r_idx]
             start_candidate = next_slot(start_candidate, dur, surgeon_map.get(s["surgeon"], []))
             if start_candidate is None:
@@ -189,7 +194,12 @@ def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], n
             if s["is_long"] and start_candidate < DAY_START + 120:
                 room_score += EARLY_LONG_SURGERY_BONUS
             if room_dirty[r_idx] and s["curata"]:
-                room_score += DIRTY_CLEAN_GAP * 2
+                room_score += DIRTY_CLEAN_GAP * 2   
+            lateness = max(0, start_candidate - DAY_START)   # minute după 08:00
+            room_score += lateness * s["complexity"] * COMPLEXITY_LATE_COEFF
+
+            if s["curata"] and s["complexity"] >= 2 and start_candidate < DAY_START + 60:
+                    room_score += COMPLEXITY_EARLY_BONUS * s["complexity"]
             if room_score < best_room_score:
                 best_room_score = room_score
                 chosen_room, chosen_start = r_idx, start_candidate
@@ -211,7 +221,8 @@ def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], n
         idle_time = max(0, chosen_start - prev_end)
         cost_idle += idle_time
         cost_clean += clean
-        cost_late += ((chosen_start - DAY_START) / 60) * (dur / 60) * LATE_PENALTY_COEFF
+        cost_late += ((chosen_start - DAY_START) / 60) * (dur / 60) \
+                    * LATE_PENALTY_COEFF * s["complexity"]
 
         if s["is_long"] and chosen_start < DAY_START + 120:
             bonus_early_long += EARLY_LONG_SURGERY_BONUS
@@ -271,134 +282,7 @@ def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], n
 
     return timetable, total_cost
 
-    """Construiește programul și calculează costul pentru o permutare dată."""
-    n_rooms = len(rooms)
 
-    room_free: List[int] = [DAY_START] * n_rooms
-    room_dirty: List[bool] = [False] * n_rooms  # True dacă sală a avut operație murdară
-    room_schedules: List[list[dict]] = [[] for _ in range(n_rooms)]
-    room_used: List[bool] = [False] * n_rooms  # Pentru penalizarea sălilor neutilizate
-
-    surgeon_map: Dict[int, List[Tuple[int, int]]] = {}
-
-    cost_idle = cost_clean = cost_late = 0
-    dirty_penalty = 0
-    unscheduled = 0
-    bonus_early_long = 0
-
-    for idx in order:
-        s = surgeries[idx]
-        dur = s["duration"]
-        clean = cleaning_minutes(s)
-
-        chosen_room = chosen_start = None
-        best_room_score = float('inf')
-
-        for r_idx, room in enumerate(rooms):
-            # Verifică compatibilitatea sălii
-            if not is_room_compatible(room, s):
-                continue
-            
-            # Evită să programeze operații curate în săli murdare
-            if room_dirty[r_idx] and s["curata"]:
-                continue
-
-            # Calculează cel mai devreme start posibil
-            start_candidate = room_free[r_idx]
-            start_candidate = next_slot(start_candidate, dur, surgeon_map.get(s["surgeon"], []))
-            if start_candidate is None:
-                continue
-            
-            # Verifică depășirea programului
-            if start_candidate + dur + clean > DAY_END:
-                continue
-
-            # Calculează scorul pentru această sală
-            room_score = start_candidate
-            # Bonus pentru operații lungi programate devreme
-            if s["is_long"] and start_candidate < DAY_START + 120:  # În primele 2 ore
-                room_score += EARLY_LONG_SURGERY_BONUS
-            # Penalizare pentru operații curate în săli care au avut deja operații murdare
-            if room_dirty[r_idx] and s["curata"]:
-                room_score += DIRTY_CLEAN_GAP * 2  # Penalizare dublă
-
-            if room_score < best_room_score:
-                best_room_score = room_score
-                chosen_room, chosen_start = r_idx, start_candidate
-
-        if chosen_room is None:
-            unscheduled += 1
-            continue
-
-        # Actualizează programul
-        end_time = chosen_start + dur
-        prev_end = DAY_START if not room_schedules[chosen_room] else room_schedules[chosen_room][-1]["_end"]
-        
-        # Calculează costuri
-        idle_time = max(0, chosen_start - prev_end)
-        cost_idle += idle_time
-        cost_clean += clean
-        cost_late += ((chosen_start - DAY_START) / 60) * (dur / 60) * LATE_PENALTY_COEFF
-        
-        # Bonus pentru operații lungi programate devreme
-        if s["is_long"] and chosen_start < DAY_START + 120:
-            bonus_early_long += EARLY_LONG_SURGERY_BONUS
-
-        # Penalizare pentru operații murdare
-        if not s["curata"]:
-            room_dirty[chosen_room] = True
-            dirty_penalty += DIRTY_CLEAN_GAP
-
-        # Salvează intrarea
-        entry = {
-            "id": s["id"],
-            "type": s["type"],
-            "start_time": f"{chosen_start//60}:{chosen_start%60:02d}",
-            "end_time": f"{end_time//60}:{end_time%60:02d}",
-            "surgeon": s["surgeon"],
-            "patient": s["patient"],
-            "duration": dur,
-            "clean_time": clean,
-            "is_clean": s["curata"],
-            "_end": end_time,
-        }
-
-        room_schedules[chosen_room].append(entry)
-        room_used[chosen_room] = True
-
-        # Actualizează trackere
-        room_free[chosen_room] = end_time + clean
-        surgeon_map.setdefault(s["surgeon"], []).append((chosen_start, end_time))
-        surgeon_map[s["surgeon"]].sort()
-
-    # Calculează penalizări pentru săli neutilizate
-    unused_penalty = sum(UNUSED_ROOM_PENALTY for used in room_used if not used)
-
-    # Curăță câmpurile interne
-    timetable: list[dict] = []
-    for r_idx, sched in enumerate(room_schedules):
-        for e in sched:
-            e.pop("_end", None)
-        timetable.append({
-            "room": rooms[r_idx]["id"],
-            "schedule": sched,
-            "total_used": (room_free[r_idx] - DAY_START) if room_used[r_idx] else 0
-        })
-
-    # Cost total
-    total_cost = (
-        cost_idle
-        + cost_clean
-        + cost_late
-        + dirty_penalty
-        + UNSCHEDULED_PENALTY * unscheduled
-        + unused_penalty
-        + bonus_early_long
-    )
-    
-    
-
-    return timetable, total_cost
 
 # =====================
 # —— GENETIC ALG. ——
@@ -427,24 +311,7 @@ def solve_ga(rooms: List[Dict], surgeries: List[Dict], nurses: List[Dict], epoch
 
     return timetable
 
-    """Rezolvă programarea prin algoritm genetic."""
-    n = len(surgeries)
-    bounds = FloatVar(lb=[0.0] * n, ub=[1.0] * n, name="rk")
 
-    def fitness(sol):
-        perm = sorted(range(n), key=lambda i: sol[i])
-        _, cost = build_schedule(perm, rooms, surgeries)
-        return cost
-
-    model = BaseGA(epoch=epoch, pop_size=pop, pc=0.9, pm=0.2)
-    problem = {"obj_func": fitness, "bounds": bounds, "minmax": "min"}
-    best = model.solve(problem)
-    best_perm = sorted(range(n), key=lambda i: best.solution[i])
-    timetable, _ = build_schedule(best_perm, rooms, surgeries)
-    
-    
-
-    return timetable
 
 # =====================
 # —— API PUBLIC ——
