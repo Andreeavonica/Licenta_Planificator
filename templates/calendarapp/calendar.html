@@ -6,8 +6,211 @@
   <link href="{% static 'calender/main.css' %}" rel="stylesheet" />
 
   <style>
+#statusModal .modal-content {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  font-size: 1rem;
+}
+
+#statusModal .modal-header {
+  background-color: #009688;
+  color: white;
+  padding: 16px 20px;
+}
+
+#statusModal .modal-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+#statusModal .close {
+  color: white;
+  font-size: 1.3rem;
+  opacity: 0.8;
+}
+
+#statusModal .close:hover {
+  opacity: 1;
+}
+
+#statusModal .modal-body {
+  padding: 20px;
+}
+
+#statusSelect {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  background-color: #f9f9f9;
+  transition: border-color 0.3s ease;
+}
+
+#statusSelect:focus {
+  border-color: #009688;
+  outline: none;
+  background-color: white;
+}
+
+#statusModal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
+  background-color: #f9f9f9;
+}
+
+#statusModal .modal-footer .btn-success {
+  background-color: #009688;
+  border: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.modal-content {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  font-size: 1rem; /* font general mai mare */
+}
+
+.modal-header.bg-primary {
+  background-color: #009688;
+  color: white;
+  padding: 16px 20px;
+}
+
+.modal-header h5 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-header .close {
+  color: white;
+  font-size: 1.3rem;
+}
+
+.modal-body p {
+  margin-bottom: 12px;
+  font-size: 1rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-body p::before {
+  font-family: "FontAwesome";
+  font-size: 1rem;
+  color: #009688;
+}
+
+#tip_operatie_detail::before { content: "\f0fa"; }      /* fa-heartbeat */
+#sala_event_detail::before { content: "\f0f8"; }        /* fa-hospital-o */
+#chirurg_detail::before { content: "\f0f0"; }           /* fa-user-md */
+#asistenta_detail::before { content: "\f007"; }         /* fa-user */
+#constrangeri_speciale_detail::before { content: "\f0a4"; }  /* fa-warning */
+#observatii_detail::before { content: "\f27a"; }        /* fa-commenting */
+#get_status_display::before { content: "\f00c"; }       /* fa-check */
+
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  background: #f9f9f9;
+}
+
+.modal-footer .btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.modal-footer .btn-danger {
+  background-color: #e63946;
+  border: none;
+}
+
+.modal-footer .btn-success {
+  background-color:#009688;
+  border: none;
+}
+
+.modal-footer .btn-primary {
+  background-color: #009688;
+  border: none;
+}
+
+  #external-events .fc-event {
+  background: linear-gradient(135deg, #e0f7fa, #ffffff);
+  border-left: 6px solid #009688;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+#external-events .fc-event:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+#external-events .fc-event h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.25rem;
+  color: #00796b;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#external-events .fc-event h3::before {
+  content: "🗓️";
+}
+
+#external-events .fc-event div {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#external-events .fc-event div::before {
+  font-family: "FontAwesome";
+  font-size: 0.9rem;
+  color: #009688;
+}
+
+#external-events .fc-event div:nth-child(2)::before { content: "\f073"; } /* calendar */
+#external-events .fc-event div:nth-child(3)::before { content: "\f007"; } /* user */
+#external-events .fc-event div:nth-child(4)::before { content: "\f0f8"; } /* hospital */
+#external-events .fc-event div:nth-child(5)::before { content: "\f017"; } /* clock */
+#external-events .fc-event div:nth-child(6)::before { content: "\f017"; } /* clock */
+#external-events .fc-event div:nth-child(7)::before { content: "\f252"; } /* duration */
+#external-events .fc-event div:nth-child(8)::before { content: "\f007"; } /* assistant/chirurg */
+#external-events .fc-event div:nth-child(9)::before { content: "\f00c"; } /* status */
+
+#external-events .fc-event .btn-status {
+  margin-top: 10px;
+  float: right;
+}
+
     
-    .btn-group-status button {
+  .btn-group-status button {
   margin-right: 5px;
   border-radius: 20px;
   font-weight: 500;
