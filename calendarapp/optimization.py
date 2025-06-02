@@ -37,7 +37,9 @@ UNUSED_ROOM_PENALTY = 50          # penalizare pentru săli neutilizate
 EARLY_LONG_SURGERY_BONUS = -20    # bonus pentru programarea devreme a operațiilor lungi (>2h)
 COMPLEXITY_LATE_COEFF = 0.25     # ajustează după nevoi
 COMPLEXITY_EARLY_BONUS = -20
-
+PRIO_EARLY_BONUS = -30      # (minute) bonus negativ → trage operaţia importantă spre 08:00
+PRIO_LATE_COEFF  = 0.8      # coef. suplimentar pentru lateness în funcţie de priority
+PRIO_UNSCHED_P   = 15_000   
 
 # =====================
 # —— ACCES SQLITE ——
@@ -64,7 +66,7 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
     SELECT e.id, e.nume_pacient, o.Nume, e.timp_estimare,
            e.data_interventie, e.user_id,
            u.first_name, u.last_name,
-           o.Laparoscopic, o.OperatieCurata, o.NecesitaIntubare, o.grad_complexitate
+           o.Laparoscopic, o.OperatieCurata, o.NecesitaIntubare, o.grad_complexitate, e.prioritate
     FROM calendarapp_event   e
     JOIN calendarapp_operatie o ON e.tip_operatie_id = o.id
     JOIN accounts_user u ON e.user_id = u.id
@@ -99,7 +101,7 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
             "curata": bool(s[9]),
             "intubare": bool(s[10]),
             "complexity": int(s[11] or 1),
-
+            "priority": int(s[11] or 2),
             "is_long": s[3] > 120,
         }
         for s in surgeries
@@ -151,101 +153,139 @@ def next_slot(start: int, dur: int, intervals: List[Tuple[int, int]]) -> Optiona
 # =====================
 
 
-def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], nurse_alloc: List[int], nurses: List[str]) -> tuple[list[dict], float]:
-    unscheduled = 0
-    unscheduled_events = []
-    n_rooms = len(rooms)
-    room_free: List[int] = [DAY_START] * n_rooms
-    room_dirty: List[bool] = [False] * n_rooms
-    room_schedules: List[list[dict]] = [[] for _ in range(n_rooms)]
-    room_used: List[bool] = [False] * n_rooms
-    surgeon_map: Dict[int, List[Tuple[int, int]]] = {}
-    nurse_map: Dict[int, List[Tuple[int, int]]] = defaultdict(list)
+def build_schedule(
+    order: List[int],
+    rooms: List[Dict],
+    surgeries: List[Dict],
+    nurse_alloc: List[int],
+    nurses: List[Dict],
+) -> tuple[list[dict], float]:
+    """Planifică întreaga zi şi întoarce (timetable, cost total)."""
+
+    # ─────---  iniţializări  ---─────
+    room_free     = [DAY_START] * len(rooms)          # minutul de la care sala e liberă
+    room_dirty    = [False] * len(rooms)
+    room_schedules: list[list[dict]] = [[] for _ in rooms]
+    room_used     = [False] * len(rooms)
+
+    surgeon_map: dict[int, list[tuple[int, int]]] = {}        # suprapuneri chirurg
+    nurse_map  : dict[int, list[tuple[int, int]]] = defaultdict(list)
 
     cost_idle = cost_clean = cost_late = 0
-    dirty_penalty = 0
-    unscheduled = 0
-    bonus_early_long = 0
+    dirty_penalty = bonus_early_long = 0
+    cost_unsched = 0                 # <-- nou!
     nurse_use_count = [0] * len(nurses)
 
-    for i, idx in enumerate(order):
+    unscheduled_events: list[dict] = []
+
+    # ─────---  iterează intervenţiile în ordinea dată  ---─────
+    for idx in order:
         s = surgeries[idx]
-        dur = s["duration"]
+        dur   = s["duration"]
         clean = cleaning_minutes(s)
         nurse_id = nurse_alloc[idx]
-        chosen_room = chosen_start = None
-        best_room_score = float('inf')
 
+        chosen_room = chosen_start = None
+        best_room_score = float("inf")
+
+        # ----- evaluează fiecare sală -----
         for r_idx, room in enumerate(rooms):
             if not is_room_compatible(room, s):
                 continue
-           
 
-            start_candidate = room_free[r_idx]
-            start_candidate = next_slot(start_candidate, dur, surgeon_map.get(s["surgeon"], []))
-            if start_candidate is None:
+            start_candidate = next_slot(room_free[r_idx], dur, surgeon_map.get(s["surgeon"], []))
+            if (
+                start_candidate is None
+                or next_slot(start_candidate, dur, nurse_map[nurse_id]) != start_candidate
+                or start_candidate + dur + clean > DAY_END
+            ):
                 continue
-            # Check if nurse is available
-            if next_slot(start_candidate, dur, nurse_map[nurse_id]) != start_candidate:
-                continue
-            if start_candidate + dur + clean > DAY_END:
-                continue
+
             room_score = start_candidate
+
+            # ① bonus pt intervenţii lungi puse devreme
             if s["is_long"] and start_candidate < DAY_START + 120:
                 room_score += EARLY_LONG_SURGERY_BONUS
-            if room_dirty[r_idx] and s["curata"]:
-                room_score += DIRTY_CLEAN_GAP * 2   
-            lateness = max(0, start_candidate - DAY_START)   # minute după 08:00
-            room_score += lateness * s["complexity"] * COMPLEXITY_LATE_COEFF
 
+            # ② penalizare supl. dacă sala e „murdară” iar operaţia e curată
+            if room_dirty[r_idx] and s["curata"]:
+                room_score += DIRTY_CLEAN_GAP * 2
+
+            # ③ lateness ∝ complexity + priority
+            lateness = max(0, start_candidate - DAY_START)
+            room_score += lateness * (
+                s["complexity"] * COMPLEXITY_LATE_COEFF + s["priority"] * PRIO_LATE_COEFF
+            )
+
+            # ④ bonus pentru start în primele 30 min din zi
+            if start_candidate < DAY_START + 30:
+                room_score += PRIO_EARLY_BONUS * s["priority"]
+
+            # ⑤ bonus supl. pentru operaţii curate, complexe, puse foarte devreme
             if s["curata"] and s["complexity"] >= 2 and start_candidate < DAY_START + 60:
-                    room_score += COMPLEXITY_EARLY_BONUS * s["complexity"]
+                room_score += COMPLEXITY_EARLY_BONUS * s["complexity"]
+
             if room_score < best_room_score:
                 best_room_score = room_score
                 chosen_room, chosen_start = r_idx, start_candidate
 
+        # ----- dacă NU avem sală liberă → marcat ca neprogramat -----
         if chosen_room is None:
-            unscheduled += 1
-            unscheduled_events.append({
-                "id": int(s.get("id", 0)),
-                "type": s.get("type", "-"),
-                "duration": int(s.get("duration", 0)),
-                "surgeon": s.get("surgeon", "-"),
-                "patient": s.get("patient", "-"),
-                "unscheduled": True
-            })
+            cost_unsched += PRIO_UNSCHED_P * (s["priority"] ** 2)
+            unscheduled_events.append(
+                {
+                    "id": s.get("id"),
+                    "type": s.get("type", "-"),
+                    "duration": dur,
+                    "surgeon": s.get("surgeon", "-"),
+                    "patient": s.get("patient", "-"),
+                    "unscheduled": True,
+                }
+            )
             continue
 
+        # ----- programăm efectiv intervenţia -----
         end_time = chosen_start + dur
-        prev_end = DAY_START if not room_schedules[chosen_room] else room_schedules[chosen_room][-1]["_end"]
-        idle_time = max(0, chosen_start - prev_end)
-        cost_idle += idle_time
-        cost_clean += clean
-        cost_late += ((chosen_start - DAY_START) / 60) * (dur / 60) \
-                    * LATE_PENALTY_COEFF * s["complexity"]
+        prev_end = (
+            DAY_START
+            if not room_schedules[chosen_room]
+            else room_schedules[chosen_room][-1]["_end"]
+        )
 
+        # actualizăm costuri
+        cost_idle += max(0, chosen_start - prev_end)
+        cost_clean += clean
+        cost_late += (
+            ((chosen_start - DAY_START) / 60)
+            * (dur / 60)
+            * LATE_PENALTY_COEFF
+            * (s["complexity"] + s["priority"] * PRIO_LATE_COEFF)
+        )
         if s["is_long"] and chosen_start < DAY_START + 120:
             bonus_early_long += EARLY_LONG_SURGERY_BONUS
-
         if not s["curata"]:
             room_dirty[chosen_room] = True
             dirty_penalty += DIRTY_CLEAN_GAP
 
-        entry = {
-            "id": s["id"],
-            "type": s["type"],
-            "start_time": f"{chosen_start//60}:{chosen_start%60:02d}",
-            "end_time": f"{end_time//60}:{end_time%60:02d}",
-            "surgeon": s["surgeon"],
-            "patient": s["patient"],
-            "duration": dur,
-            "clean_time": clean,
-            "is_clean": s["curata"],
-            "nurse": nurses[nurse_id]["name"], "nurse_id": nurses[nurse_id]["id"],
-            "_end": end_time,
-        }
+        # salvăm în orar
+        room_schedules[chosen_room].append(
+            {
+                "id": s["id"],
+                "type": s["type"],
+                "start_time": f"{chosen_start//60}:{chosen_start%60:02d}",
+                "end_time": f"{end_time//60}:{end_time%60:02d}",
+                "surgeon": s["surgeon"],
+                "patient": s["patient"],
+                "duration": dur,
+                "clean_time": clean,
+                "is_clean": s["curata"],
+                "nurse": nurses[nurse_id]["name"],
+                "nurse_id": nurses[nurse_id]["id"],
+                "_end": end_time,
+            }
+        )
 
-        room_schedules[chosen_room].append(entry)
+        # update registri
         room_used[chosen_room] = True
         room_free[chosen_room] = end_time + clean
         surgeon_map.setdefault(s["surgeon"], []).append((chosen_start, end_time))
@@ -254,31 +294,36 @@ def build_schedule(order: List[int], rooms: List[Dict], surgeries: List[Dict], n
         nurse_map[nurse_id].sort()
         nurse_use_count[nurse_id] += 1
 
+    # ─────---  construim output-ul  ---─────
     unused_penalty = sum(UNUSED_ROOM_PENALTY for used in room_used if not used)
-    timetable: list[dict] = []
+
+    timetable = []
     for r_idx, sched in enumerate(room_schedules):
         for e in sched:
-            e.pop("_end", None)
-        timetable.append({
-            "room": rooms[r_idx]["id"],
-            "schedule": sched,
-            "total_used": (room_free[r_idx] - DAY_START) if room_used[r_idx] else 0
-        })
+            e.pop("_end", None)           # nu expunem câmp intern
+        timetable.append(
+            {
+                "room": rooms[r_idx]["id"],
+                "schedule": sched,
+                "total_used": (room_free[r_idx] - DAY_START) if room_used[r_idx] else 0,
+            }
+        )
+
     if unscheduled_events:
-            timetable.append({
-                "room": "neplanificate",
-                "schedule": unscheduled_events,
-                "total_used": 0
-     })
+        timetable.append({"room": "neplanificate", "schedule": unscheduled_events, "total_used": 0})
 
     std_nurse = np.std(nurse_use_count)
+
     total_cost = (
-        cost_idle + cost_clean + cost_late +
-        dirty_penalty + UNSCHEDULED_PENALTY * unscheduled +
-        unused_penalty + bonus_early_long + std_nurse * 5
+        cost_idle
+        + cost_clean
+        + cost_late
+        + dirty_penalty
+        + cost_unsched           # <-- nou!
+        + unused_penalty
+        + bonus_early_long
+        + std_nurse * 5
     )
-    
-    
 
     return timetable, total_cost
 

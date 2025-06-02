@@ -1,6 +1,15 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% block title %}Event List{% endblock title %}
+{% block extracss %}
+
+ <style>
+.prio-1 { color:#09921e; }     /* Scăzută  */
+.prio-2 { color:#c1ae07; font-weight:600; }  /* Normală  */
+.prio-3 { color:#c30000; font-weight:700; }  /* Urgentă  */
+
+ </style>
+ {% endblock extracss %}
 
 {% block breadcrumb %}
     <div>
@@ -52,9 +61,12 @@
             <th>Durată</th>
             <th>Status</th>
             <th>Chirurg</th>
+            <th>Prioritate</th>
+
           {% elif tip == "asteptare" or tip == "programati" %}
             <th>Tip operație</th>
             <th>Data intervenție</th>
+            <th>Prioritate</th>
             <th>Timp estimat</th>
             <th>Constrângeri</th>
             <th>Observații</th>
@@ -64,6 +76,7 @@
               <th>Ora sfârșit</th>
               <th>Durată</th>
               <th>Asistentă</th>
+
             {% endif %}
             <th>Status</th>
           {% else %}
@@ -107,6 +120,9 @@
                 <td>{{ e.durata }} min</td>
                 <td>{{ e.get_status_display }}</td>
                 <td>{{ e.user.first_name }} {{ e.user.last_name }}</td>
+                <td class="prio prio-{{ event.prioritate }}">
+                    {{ e.get_prioritate_display }}
+               </td>
               </tr>
             {% else %}
               <tr>
@@ -119,6 +135,9 @@
                 <td>{{ pacient.istoric_medical }}</td>
                 <td>{{ e.tip_operatie }}</td>
                 <td>{{ e.data_interventie|date:"j F Y" }}</td>
+                <td class="prio prio-{{ event.prioritate }}">
+                  {{ e.get_prioritate_display }}
+                </td>
                 <td>{{ e.timp_estimare }} min</td>
                 <td>{{ e.constrangeri_speciale }}</td>
                 <td>{{ e.observatii }}</td>
@@ -135,7 +154,9 @@
                       -
                     {% endif %}
                   </td>
+                  
                 {% endif %}
+                
 
                 <td>{{ e.get_status_display }}</td>
               </tr>

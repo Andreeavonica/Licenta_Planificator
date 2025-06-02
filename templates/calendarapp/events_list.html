@@ -2,6 +2,15 @@
 {% load static %}
 
 {% block title %}Event List{% endblock title %}
+{% block extracss %}
+
+ <style>
+.prio-1 { color:#09921e; }     /* Scăzută  */
+.prio-2 { color:#c1ae07; font-weight:600; }  /* Normală  */
+.prio-3 { color:#c30000; font-weight:700; }  /* Urgentă  */
+
+ </style>
+ {% endblock extracss %}
 
 {% block breadcrumb %}
     <div>
@@ -32,6 +41,7 @@
                                         
                                             {% if show_pending_fields %}
                                                 <th>Timp Estimat</th>
+                                                <th>Prioritate</th>
                                                 <th>Constrângeri Speciale</th>
                                                 <th>Observații</th>
                                                 <th>Status</th> <!-- Nouă coloană pentru status -->
@@ -50,6 +60,7 @@
                                                 {% else %}
                                                     <th>Asistentă</th>
                                                 {% endif %}
+                                                <th>Prioritate</th>
                                                 <th>Status</th> <!-- Nouă coloană pentru status -->
 
                                             {% endif %}
@@ -72,6 +83,7 @@
                                                 {% else %}
                                                     <th>Asistentă</th>
                                                 {% endif %}
+                                                <th>Prioritate</th>
                                                 <th>Status Operație</th> <!-- Nouă coloană pentru status -->
                                             {% endif %}
                                         </tr>
@@ -88,6 +100,9 @@
 
                                                 {% if show_pending_fields %}
                                                     <td>{{ event.timp_estimare }}</td>
+                                                    <td class="prio prio-{{ event.prioritate }}">
+                                                        {{ event.get_prioritate_display }}
+                                                    </td>
                                                     <td>{{ event.constrangeri_speciale }}</td>
                                                     <td>{{ event.observatii }}</td>
                                                     <td>{{ event.get_status_display }}</td>
@@ -112,6 +127,9 @@
                                                             {% endif %}
                                                         </td>
                                                     {% endif %}
+                                                    <td class="prio prio-{{ event.prioritate }}">
+                                                        {{ event.get_prioritate_display }}
+                                                    </td>
 
                                                     <td>{{ event.get_status_display }}</td>
 
@@ -135,6 +153,9 @@
                                                             {% endif %}
                                                         </td>
                                                     {% endif %}
+                                                    <td class="prio prio-{{ event.prioritate }}">
+                                                        {{ event.get_prioritate_display }}
+                                                    </td>
 
                                                     <td>{{ event.get_status_live_display }}</td>
 
