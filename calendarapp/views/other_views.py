@@ -556,10 +556,12 @@ def _minutes_between(t1: str, t2: str) -> int:
 
 def _compute_idle(room_schedule: List[Dict]) -> int:
     """Minutele idle într‑o sală între începutul zilei și ultima operație."""
-    if not room_schedule:
+    # 🛡️ Evită crash dacă lipsește start_time
+    valid_schedule = [ev for ev in room_schedule if "start_time" in ev and "end_time" in ev]
+    if not valid_schedule:
         return 0
-    idle = _minutes_between(f"{DAY_START//60:02d}:{DAY_START%60:02d}", room_schedule[0]["start_time"])
-    for prev, cur in zip(room_schedule, room_schedule[1:]):
+    idle = _minutes_between(f"{DAY_START//60:02d}:{DAY_START%60:02d}", valid_schedule[0]["start_time"])
+    for prev, cur in zip(valid_schedule, valid_schedule[1:]):
         idle += _minutes_between(prev["end_time"], cur["start_time"])
     return max(idle, 0)
 

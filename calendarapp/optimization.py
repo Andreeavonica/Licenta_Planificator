@@ -101,7 +101,7 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
             "curata": bool(s[9]),
             "intubare": bool(s[10]),
             "complexity": int(s[11] or 1),
-            "priority": int(s[11] or 2),
+            "priority": int(s[12] or 2),
             "is_long": s[3] > 120,
         }
         for s in surgeries
@@ -333,6 +333,97 @@ def build_schedule(
 # —— GENETIC ALG. ——
 # =====================
 
+def repair_chromosome_light(order: List[int], surgeries: List[Dict], rooms: List[Dict]) -> List[int]:
+    """
+    Repair-light de tip greedy: inserează pe rând fiecare intervenție în prima
+    sală compatibilă și interval liber (fără suprapunere cu același chirurg),
+    ținând un dicționar occupied pentru fiecare sală și surgeon_intervals
+    pentru conflict chirurgical. Operațiile imposibil de plasat ajung la final.
+    """
+    # 1. Dizionar sală_id -> listă sortată de (start, end) ocupate (doar de operații)
+    occupied_rooms: dict[int, List[Tuple[int, int]]] = {r["id"]: [] for r in rooms}
+    # 2. Dizionar surgeon_id -> listă sortată de (start, end) ocupate
+    surgeon_intervals: dict[int, List[Tuple[int, int]]] = {}
+    # 3. Rezultatele:
+    placed = []    # idx-urile programate (în ordinea “greedy” de inserție)
+    unplaced = []  # idx-urile care nu s-au putut programa
+    
+    for idx in order:
+        s = surgeries[idx]
+        dur = s["duration"]
+        clean = cleaning_minutes(s)
+        surgeon_id = s["surgeon_id"]
+        
+        # Verificare rapidă: există vreo sală complet compatibilă (fără a testa interval)?
+        # (Doar compatibilitate laparo/intubare + durata + cleaning încap în zi)
+        if not any(
+            is_room_compatible(room, s) and (DAY_START + dur + clean <= DAY_END)
+            for room in rooms
+        ):
+            # Dacă nu încape clar în nicio sală (compatibilă + timp), îl considerăm imposibil.
+            unplaced.append(idx)
+            continue
+        
+        # 4. Încercăm să-l plasăm într-o sală compatibilă, în primul interval liber
+        found_slot = False
+        
+        for room in rooms:
+            room_id = room["id"]
+            # 4.1. să fie compatibil OR <-> surgery
+            if not is_room_compatible(room, s):
+                continue
+            
+            # 4.2. Construim lista de intervale ocupate curente (fără curățenie)
+            intervals_room = occupied_rooms[room_id]
+            # 4.3. Din aceste intervale, calculăm lista “complementară” de intervale libere
+            #      între DAY_START și DAY_END, FĂRĂ timpi de curățare.
+            free_intervals = []
+            prev_end = DAY_START
+            for (st, en) in intervals_room:
+                if prev_end + dur + clean <= st:
+                    free_intervals.append((prev_end, st))
+                prev_end = max(prev_end, en + cleaning_minutes(surgeries[0]))  
+                # NOTĂ: aici nu trebuie curățenie globală, vom adăuga cleaning abia în build_schedule.
+                #       Aici ne interesează doar slotul fără suprapunere operații.
+            #  Încă trebuie să verificăm spațiul după ultima operație din sală
+            if prev_end + dur + clean <= DAY_END:
+                free_intervals.append((prev_end, DAY_END))
+            
+            # 4.4. Și verificăm pentru fiecare interval liber dacă se găsește un start posibil
+            #      ținând cont și de suprapuneri cu chirurgul:
+            #      pacientul începe în free_start, merge dur minute, apoi vrem clean minute la final
+            for (free_start, free_end) in free_intervals:
+                # Verificăm suprapuneri ale chirurgului:
+                # surgeon_intervals.get(...) returnează liste sortate de (start, end).
+                surgeon_list = surgeon_intervals.get(surgeon_id, [])
+                # Folosim acel next_slot la nivel de surgeon:
+                cand_start = next_slot(free_start, dur, surgeon_list)
+                if cand_start is None or cand_start + dur + clean > free_end:
+                    # nu încape corect fără suprapunere chirurg
+                    continue
+                # Am găsit momentul valid: cand_start, în sala room_id
+                # ① adăugăm intervalul de operație în occupied_rooms (fără cleaning)
+                occupied_rooms[room_id].append((cand_start, cand_start + dur))
+                occupied_rooms[room_id].sort()  # păstrăm sortarea prin start-time
+                # ② adăugăm și intervalul la surgeon_intervals
+                surgeon_intervals.setdefault(surgeon_id, []).append((cand_start, cand_start + dur))
+                surgeon_intervals[surgeon_id].sort()
+                
+                placed.append(idx)
+                found_slot = True
+                break
+            
+            if found_slot:
+                break
+        
+        if not found_slot:
+            # Nu a găsit nicio sală și interval liber compatibil chirurg/durată + cleaning
+            unplaced.append(idx)
+    
+    # 5. Returnăm lista finală: mai întâi pe cei “plasați”, apoi pe cei “unplaced”
+    return placed + unplaced
+
+
 
 def solve_ga(rooms: List[Dict], surgeries: List[Dict], nurses: List[Dict], epoch: int = 500, pop: int = 80):
     n = len(surgeries)
@@ -340,9 +431,10 @@ def solve_ga(rooms: List[Dict], surgeries: List[Dict], nurses: List[Dict], epoch
     bounds = FloatVar(lb=[0.0] * (2 * n), ub=[1.0] * (2 * n), name="rk")
 
     def fitness(sol):
-        perm = sorted(range(n), key=lambda i: sol[i])
+        raw_order = sorted(range(n), key=lambda i: sol[i])
+        repaired_order = repair_chromosome_light(raw_order, surgeries, rooms)
         nurse_alloc = [int(sol[i + n] * m) for i in range(n)]
-        _, cost = build_schedule(perm, rooms, surgeries, nurse_alloc, nurses)
+        _, cost = build_schedule(repaired_order, rooms, surgeries, nurse_alloc, nurses)
         return cost
 
     model = BaseGA(epoch=epoch, pop_size=pop, pc=0.9, pm=0.2)
