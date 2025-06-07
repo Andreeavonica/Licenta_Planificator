@@ -59,6 +59,7 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
         """
     )
     rooms = c.fetchall()
+    
 
     # Surgeries to schedule
     c.execute(
@@ -81,31 +82,32 @@ def fetch_data(selected_date: str) -> tuple[list[dict], list[dict]]:
     room_data = [
         {
             "id": r[0],
-            "is_large": bool(r[1]),
-            "laparoscopic": bool(r[2]),
+            "is_large": int(r[1]) == 1,
+            "laparoscopic": int(r[2]) == 1,
             "chirurgie": r[3],
         }
         for r in rooms
     ]
 
     surgery_data = [
-        {
-            "id": s[0],
-            "patient": s[1],
-            "type": s[2],
-            "duration": s[3],
-            "date": s[4],
-            "surgeon_id": s[5],
-            "surgeon": f"{s[6]} {s[7]}",  # first_name + last_name
-            "laparoscopic": bool(s[8]),
-            "curata": bool(s[9]),
-            "intubare": bool(s[10]),
-            "complexity": int(s[11] or 1),
-            "priority": int(s[12] or 2),
-            "is_long": s[3] > 120,
-        }
-        for s in surgeries
-    ]
+    {
+        "id": s[0],
+        "patient": s[1],
+        "type": s[2],
+        "duration": s[3],
+        "date": s[4],
+        "surgeon_id": s[5],
+        "surgeon": f"{s[6]} {s[7]}",
+        "laparoscopic": int(s[8]) == 1,
+        "curata": int(s[9]) == 1,
+        "intubare": int(s[10]) == 1,
+        "complexity": int(s[11] or 1),
+        "priority": int(s[12] or 2),
+        "is_long": s[3] > 120,
+    }
+    for s in surgeries
+]
+
     # Fetch nurses from DB (users with role = 'assistant')
     c = conn.cursor()
     c.execute("SELECT id, first_name, last_name FROM accounts_user WHERE role = 'assistant' AND is_active = 1")
@@ -458,21 +460,38 @@ def solve_ga(rooms: List[Dict], surgeries: List[Dict], nurses: List[Dict], epoch
 def schedule_surgeries(selected_date: str):
     """
     Generează programul operațiilor pentru ziua aleasă.
-    — rezervăm PRIMA sală mare (is_large=True) pentru urgențe;
-    — ea apare în grafic cu un bloc „Rezervată pentru urgențe”,
+    — rezervăm prin rotație una dintre cele 3 săli mari (is_large=True și laparoscopic=False)
+      pentru cazurile de urgență;
+    — sala de urgență apare cu un bloc „Rezervată pentru urgențe”,
       dar NU este folosită de algoritmul genetic.
     """
     # 0. date brute
     rooms, surgeries, nurses = fetch_data(selected_date)
 
     # 1. găsim prima sală mare
-    emergency_room = next((r for r in rooms if r["is_large"]), None)
+    # 1. identificăm primele 3 săli mari și alegem una în rotație în funcție de dată
+    import datetime
+    
 
-    # 2. lista pentru GA = toate sălile, mai puţin cea de urgenţe (dacă există)
+    emergency_candidates = sorted(
+        [r for r in rooms if r['is_large'] and not r['laparoscopic']],
+        key=lambda x: x['id']
+    )[:3]
+
+    if emergency_candidates:
+        date_obj = datetime.datetime.strptime(selected_date, "%Y-%m-%d").date()
+        idx = date_obj.toordinal() % len(emergency_candidates)
+        emergency_room = emergency_candidates[idx]
+    else:
+        emergency_room = None
+
+    # 2. lista pentru GA = toate sălile, mai puțin cea de urgențe (dacă există)
     if emergency_room:
         rooms_for_ga = [r for r in rooms if r["id"] != emergency_room["id"]]
     else:
         rooms_for_ga = rooms
+
+    
 
     # 3. rulează optimizarea (doar pe sălile elective)
     if surgeries:
