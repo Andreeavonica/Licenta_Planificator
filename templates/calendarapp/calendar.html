@@ -203,6 +203,14 @@
 #external-events .fc-event div:nth-child(7)::before { content: "\f252"; } /* duration */
 #external-events .fc-event div:nth-child(8)::before { content: "\f007"; } /* assistant/chirurg */
 #external-events .fc-event div:nth-child(9)::before { content: "\f00c"; } /* status */
+#timp_estimare_detail::before { 
+  content: "\f017";   /* fa-clock-o */
+  font-family: "FontAwesome";
+}
+#prioritate_detail::before { 
+  content: "\f071";   /* fa-exclamation-triangle */
+  font-family: "FontAwesome";
+}
 
 #external-events .fc-event .btn-status {
   margin-top: 10px;
@@ -594,7 +602,9 @@
               <p id="sala_event_detail"></p>
               <p id="chirurg_detail"></p>
               <p id="asistenta_detail"></p>
-
+              <p id="timp_estimare_detail" style="display: none;">
+                <span id="timp_estimare_val"></span>
+              </p>
               <p id="constrangeri_speciale_detail"></p>
               <p id="observatii_detail"></p>
               <p id="prioritate_detail"></p>
@@ -604,6 +614,9 @@
             </div>
             <div class="modal-footer">
               <button id="delete-event-button" data-event-id="" type="button" class="btn btn-danger">Șterge</button>
+              <button id="edit-event-button" type="button" class="btn btn-primary" style="display:none;">
+                Editează
+              </button>
               <button id="add-to-next-week" data-event-id-week="" type="button" class="btn btn-success">Săptămana următoare</button>
               <button id="add-to-next-day" data-event-id-day="" type="button" class="btn btn-primary">Ziua următoare</button>
             </div>
@@ -614,6 +627,74 @@
     </div>
   </div>
 </div>
+<!-- Modal de editare (identic cu cel de creare) -->
+<div id="editModal" class="modal fade" tabindex="-1" role="dialog" style="display:none;">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white">Editează Operație</h5>
+        <button id="modalEditClose" type="button" class="close"><span>&times;</span></button>
+      </div>
+      <form id="editForm">
+        {% csrf_token %}
+        <div class="modal-body modal-body-scrollable">
+          <div class="form-icon-group">
+            <i class="fa fa-calendar"></i>
+            <label>Data Intervenției:</label>
+            <input type="date" id="edit_data_interventie" class="form-control" disabled />
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-user"></i>
+            <label>Nume pacient:</label>
+            <input type="text" id="edit_nume_pacient" class="form-control" disabled />
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-stethoscope"></i>
+            <label>Tip Operație:</label>
+            <input type="text" id="edit_tip_operatie_text" class="form-control" />
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-exclamation-triangle"></i>
+            <label>Prioritate:</label>
+            <div id="edit_priorityOptions" class="priority-buttons">
+              <button type="button" class="btn btn-prio" data-value="1">Normală</button>
+              <button type="button" class="btn btn-prio" data-value="2">Ridicată</button>
+              <button type="button" class="btn btn-prio" data-value="3">Urgentă</button>
+            </div>
+            <input type="hidden" id="edit_prioritate" />
+          </div>
+          <div id="edit_wrap_justificare" class="form-icon-group" style="display:none;">
+            <i class="fa fa-comment"></i>
+            <label>Justificare:</label>
+            <input type="text" id="edit_justificare_prioritate" class="form-control" />
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-heartbeat"></i>
+            <label>Alergii:</label>
+            <textarea id="edit_constrangeri_speciale" class="form-control"></textarea>
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-clock-o"></i>
+            <label>Timp Estimat (min):</label>
+            <input type="number" id="edit_timp_estimare" class="form-control" placeholder="––" />
+          </div>
+          <div class="form-icon-group">
+            <i class="fa fa-clipboard"></i>
+            <label>Observații:</label>
+            <textarea id="edit_observatii" class="form-control" placeholder="––"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer modal-footer-sticky">
+          <button id="modalEditCloseFooter" type="button" class="btn btn-danger">Închide</button>
+          <button type="submit" class="btn btn-success">Salvează modificări</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
 
 <div class="modal fade" id="statusModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -643,226 +724,273 @@
 </div>
 
 {% endblock content %}
-
 {% block extrascripts %}
 <script src="{% static 'calender/main.js' %}"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ro.js"></script>
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Elemente de bază
+  // 1. Init
   const calendarEl   = document.getElementById('calendar');
   const allEventsRaw = {{ events|safe }};
   const userRole     = "{{ request.user.role }}";
+  // la începutul DOMContentLoaded, aşa încât să ai acces la csrf_token
+  const csrftoken = '{{ csrf_token }}';
 
-  // Init FullCalendar
+  // stochează undeva ID-ul evenimentului curent
+  let currentEditId = null;
+
+  // în btnEdit.onclick, după setarea dataset-urilor, adaugă:
+
+  // apoi, peste tot codul existent:
+  document.getElementById('editForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const newPrioritate     = Number($('#edit_prioritate').val());
+    const newPrioritateText = $(`#edit_priorityOptions .btn-prio.active`).text().trim();
+    const payload = {
+      estimare_timp: document.getElementById('edit_timp_estimare').value,
+      observatii:   document.getElementById('edit_observatii').value,
+      prioritate:   document.getElementById('edit_prioritate').value,
+      constrangeri_speciale:  document.getElementById('edit_constrangeri_speciale').value,
+      justificare_prioritate: document.getElementById('edit_justificare_prioritate').value,
+    };
+    fetch(`/edit_event/${currentEditId}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        $('#editModal').modal('hide');
+         const ev = calendar.getEventById(String(currentEditId));
+        // setează-i noua prioritate (prop personalizată)
+        ev.setExtendedProp('prioritate', newPrioritate);
+        // dacă vrei și noul text afișat:
+        ev.setExtendedProp('prioritate_display', newPrioritateText);
+        // opțional: schimbă clasa de stil
+        ev.setProp('classNames', [ newPrioritate===3 ? 'urgent' : 'normal' ]);
+        location.reload();  // sau actualizează calendarul dinamicizat
+      } else {
+        alert('Eroare: ' + (data.error||'nu s-au salvat modificările'));
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('A apărut o eroare la salvare.');
+    });
+  });
+
+
+  // 2. FullCalendar
   const calendar = new FullCalendar.Calendar(calendarEl, {
     locale: 'ro',
-    headerToolbar: {
-      left:   'prev,next today',
-      center: 'title',
-      right:  'dayGridMonth,timeGridWeek,timeGridDay,list'
-    },
-    initialDate:      new Date(),
-    displayEventTime: false,
-    navLinks:         true,
-    selectable:       true,
-    selectMirror:     true,
-    editable:         true,
-    dayMaxEvents:     true,
-    events:           mapEvents(allEventsRaw),
-    select:           onDateSelect,
-    eventClick:       onEventClick
+    headerToolbar: { left:'prev,next today', center:'title', right:'dayGridMonth,timeGridWeek,timeGridDay,list' },
+    initialDate: new Date(), displayEventTime:false, navLinks:true,
+    selectable:true, selectMirror:true, editable:true, dayMaxEvents:true,
+    events: mapEvents(allEventsRaw),
+    select: onDateSelect,
+    eventClick: onEventClick
   });
   calendar.render();
 
-  // ─── Funcţii definite *în* acest scope ───
+  // 3. Helpers
   function mapEvents(events) {
     return events.map(e => ({
       ...e,
-      classNames: [ e.status === "Aprobat" ? "aprobat" : "in-asteptare" ]
+      classNames: [ e.status==="Aprobat" ? "aprobat" : "in-asteptare" ]
     }));
   }
-
   function onDateSelect(arg) {
     document.getElementById('id_data_interventie').value = arg.startStr;
-    document.getElementById('eventModal').style.display = 'block';
+    // 1) Goalește starea anterioară
+    $('#edit_priorityOptions .btn-prio').removeClass('active');
+
+    // 2) Setează hidden-input-ul
+    $('#edit_prioritate').val(ev2.prioritate);
+
+    // 3) Bifează butonul cu valoarea curentă
+    $(`#edit_priorityOptions .btn-prio[data-value="${ev2.prioritate}"]`)
+      .addClass('active');
+
+        $('#eventModal').modal('show');
     calendar.unselect();
   }
 
   function onEventClick(arg) {
     const ev = arg.event.extendedProps;
-    // Populare detalii
-    document.getElementById('title_event_detail').textContent            =
-      `Nume Pacient: ${ev.nume_pacient||"N/A"}`;
-    document.getElementById('tip_operatie_detail').textContent          =
-      `Tip Operație: ${ev.tip_operatie||"N/A"}`;
-    document.getElementById('sala_event_detail').textContent            =
-      `Sală alocată: ${ev.sala_alocata||"N/A"}`;
-    document.getElementById('constrangeri_speciale_detail').textContent =
-      `Alergii: ${ev.constrangeri_speciale||"N/A"}`;
-    document.getElementById('observatii_detail').textContent            =
-      `Observații: ${ev.observatii||"N/A"}`;
-    document.getElementById('get_status_display').textContent           =
-      `Status: ${ev.status||"N/A"}`;
-    document.getElementById('prioritate_detail').textContent            =
-      `Prioritate: ${ev.prioritate_display||"N/A"}`;
-
-    // Justificare (doar la prioritate 3)
+    // populate detailModal
+    document.getElementById('title_event_detail').textContent            = `Nume Pacient: ${ev.nume_pacient||"N/A"}`;
+    document.getElementById('tip_operatie_detail').textContent          = `Tip Operație: ${ev.tip_operatie||"N/A"}`;
+    document.getElementById('sala_event_detail').textContent            = `Sală alocată: ${ev.sala_alocata||"N/A"}`;
+    document.getElementById('constrangeri_speciale_detail').textContent = `Alergii: ${ev.constrangeri_speciale||"N/A"}`;
+    document.getElementById('observatii_detail').textContent            = `Observații: ${ev.observatii||"N/A"}`;
+    document.getElementById('get_status_display').textContent           = `Status: ${ev.status||"N/A"}`;
+    document.getElementById('prioritate_detail').textContent            = `Prioritate: ${ev.prioritate_display||"N/A"}`;
     const justEl = document.getElementById('justificare_prioritate_detail');
-    if (ev.prioritate===3 && ev.justificare_prioritate) {
-      justEl.style.display = '';
-      justEl.textContent   = `Justificare: ${ev.justificare_prioritate}`;
+    if(ev.prioritate===3 && ev.justificare_prioritate){ justEl.style.display=''; justEl.textContent=`Justificare: ${ev.justificare_prioritate}`; }
+    else justEl.style.display='none';
+    const status = ev.status;  // "Aprobat" sau "În Așteptare" etc.
+    const timpDetail      = document.getElementById('timp_estimare_detail');
+    const timpEstimareVal = document.getElementById('timp_estimare_val');
+
+    if (status === "În Așteptare") {
+      timpEstimareVal.textContent = `Timp estimat: ${ev.timp_estimare||"N/A"} min`;
+      timpDetail.style.display = '';
     } else {
-      justEl.style.display = 'none';
+      // ascunde complet dacă nu e pending
+      timpDetail.style.display = 'none';
     }
 
-    // Chirurg vs Asistentă după rol
-    const chirEl = document.getElementById('chirurg_detail');
-    const asisEl = document.getElementById('asistenta_detail');
-    chirEl.style.display = asisEl.style.display = 'none';
-    if (userRole==='surgeon') {
-      asisEl.style.display = '';
-      asisEl.textContent   = `Asistentă: ${ev.asistenta||"N/A"}`;
-    } else if (userRole==='assistant') {
-      chirEl.style.display = '';
-      chirEl.textContent   = `Chirurg: ${ev.chirurg||"N/A"}`;
-    }
+    // role specific
+    const chir=document.getElementById('chirurg_detail'), asi=document.getElementById('asistenta_detail');
+    chir.style.display = asi.style.display = 'none';
+    if(userRole==='surgeon'){ asi.style.display=''; asi.textContent=`Asistentă: ${ev.asistenta||"N/A"}`; }
+    else if(userRole==='assistant'){ chir.style.display=''; chir.textContent=`Chirurg: ${ev.chirurg||"N/A"}`; }
 
-    // Pregătire butoane delete/next-week/next-day
+    // delete/next data
     document.getElementById('delete-event-button').dataset.eventId     = arg.event.id;
     document.getElementById('add-to-next-week').dataset.eventIdWeek   = arg.event.id;
     document.getElementById('add-to-next-day').dataset.eventIdDay     = arg.event.id;
 
-    document.getElementById('detailModal').style.display = 'block';
-  }
-
-  function applyFilter(type) {
-    let filtered;
-    if (type==='all')      filtered = allEventsRaw;
-    if (type==='approved') filtered = allEventsRaw.filter(e=>e.status==="Aprobat");
-    if (type==='pending')  filtered = allEventsRaw.filter(e=>e.status==="În Așteptare");
-    calendar.removeAllEvents();
-    calendar.addEventSource(mapEvents(filtered));
-  }
-
-  // ─── Setup filtre ───
-  document.getElementById('btnAll').onclick     = () => applyFilter('all');
-  document.getElementById('btnPlanned').onclick = () => applyFilter('approved');
-  document.getElementById('btnPending').onclick = () => applyFilter('pending');
-
-  const toggle = document.getElementById("filterToggle"),
-        drop   = document.getElementById("filterDropdown");
-  toggle.addEventListener("click", ()=> {
-    drop.style.display = drop.style.display==='block' ? 'none' : 'block';
-  });
-  document.addEventListener("click", e=>{
-    if (!toggle.contains(e.target) && !drop.contains(e.target))
-      drop.style.display='none';
-  });
-
-  // ─── Setup modale & AJAX ───
-  document.querySelectorAll('#modalClose1,#modalClose2').forEach(b=>
-    b.addEventListener('click',()=> document.getElementById('eventModal').style.display='none')
-  );
-  document.getElementById('modalDetailClose').addEventListener('click',()=>{
-    document.getElementById('detailModal').style.display='none';
-  });
-
-  // Delete
-  document.getElementById('delete-event-button').addEventListener('click',function(){
-    if (!confirm('Eşti sigur că vrei să ştergi evenimentul?')) return;
-    $.post(`/delete_event/${this.dataset.eventId}/`, {
-      csrfmiddlewaretoken:'{{ csrf_token }}'
-    }).done(r=>{ alert(r.message); location.reload(); })
-      .fail(()=>alert('Eroare la ştergere!'));
-  });
-
-  // Next week
-  document.getElementById('add-to-next-week').addEventListener('click',function(){
-    if (!confirm('Adaugă săptămâna viitoare?')) return;
-    $.post(`/next_week/${this.dataset.eventIdWeek}/`, {
-      csrfmiddlewaretoken:'{{ csrf_token }}'
-    }).done(r=>{ alert(r.message); location.reload(); })
-      .fail(()=>alert('Eroare!'));
-  });
-
-  // Next day
-  document.getElementById('add-to-next-day').addEventListener('click',function(){
-    if (!confirm('Adaugă ziua următoare?')) return;
-    $.post(`/next_day/${this.dataset.eventIdDay}/`, {
-      csrfmiddlewaretoken:'{{ csrf_token }}'
-    }).done(r=>{ alert(r.message); location.reload(); })
-      .fail(()=>alert('Eroare!'));
-  });
-
-  // Status modal & AJAX update
-  window.openStatusModal = (eventId, currentStatus) => {
-    document.getElementById('eventStatusId').value = eventId;
-    document.getElementById('statusSelect').value  = currentStatus;
-    $('#statusModal').modal('show');
-  };
-  document.getElementById('statusForm').addEventListener('submit', e=>{
-    e.preventDefault();
-    const id     = document.getElementById('eventStatusId').value;
-    const status = document.getElementById('statusSelect').value;
-    fetch(`/update_status/${id}/`, {
-      method:'POST',
-      headers:{
-        "X-CSRFToken": "{{ csrf_token }}",
-        "Content-Type":"application/x-www-form-urlencoded"
-      },
-      body:`status_live=${status}`
-    })
-    .then(r=>r.json())
-    .then(_=>{ $('#statusModal').modal('hide'); location.reload(); });
-  });
-
-  // ─── WebSocket live updates ───
-  const socket = new WebSocket(`ws://${window.location.host}/ws/board/`);
-  socket.onmessage = e => {
-    const {event_id, status_live} = JSON.parse(e.data);
-    const el = document.querySelector(`.surgery[data-id='${event_id}']`);
-    if (!el) return;
-    const colorMap = {
-      checked_in:    '#4dabf7',
-      anes_start:    '#ff922b',
-      surgery_start: '#e03131',
-      pacu:          '#5f3dc4',
-      finalizat:     '#2f9e44'
-    };
-    el.style.backgroundColor = colorMap[status_live]||'';
-    el.insertAdjacentHTML('beforeend',
-      `<div style="font-size:11px">🟢 ${status_live.replace('_',' ')}</div>`
-    );
-  };
-  socket.onclose = ()=> console.warn('WebSocket closed');
-
-  // ─── Prioritate UI ───
-  const prioSelect = document.getElementById('id_prioritate'),
-        prioBtns   = document.querySelectorAll('.btn-prio'),
-        justWrap   = document.getElementById('wrap_justificare'),
-        justInp    = document.getElementById('id_justificare_prioritate');
-
-  function toggleJust() {
-    if (prioSelect.value==='3') justWrap.style.display='';
-    else {
-      justWrap.style.display='none';
-      if (justInp) justInp.value='';
+    // edit button logic
+    const diffDays=(new Date(arg.event.start)-new Date())/(1000*60*60*24);
+    const btnEdit=document.getElementById('edit-event-button');
+    if(userRole==='surgeon' && diffDays>=1 && ev.status==="În Așteptare"){
+      btnEdit.style.display='';
+      btnEdit.dataset.eventId       = arg.event.id;
+      btnEdit.dataset.eventStartStr = arg.event.startStr;
+      btnEdit.dataset.eventProps    = JSON.stringify({
+        data_interventie:       ev.data_interventie,
+        nume_pacient:           ev.nume_pacient,
+        tip_operatie:           ev.tip_operatie,
+        prioritate:             ev.prioritate,
+        justificare_prioritate: ev.justificare_prioritate,
+        constrangeri_speciale:  ev.constrangeri_speciale,
+        timp_estimare:          ev.timp_estimare,
+        observatii:             ev.observatii
+      });
+    } else {
+      btnEdit.style.display='none';
     }
+
+    // debug
+    console.log("Edit button found:", btnEdit);
+    btnEdit.addEventListener('click', () => console.log("Edit clicked"));
+
+    btnEdit.onclick = () => {
+      currentEditId = btnEdit.dataset.eventId;
+
+      console.log("▶️ Entered btnEdit.onclick");
+      $('#detailModal').modal('hide');
+      const ev2   = JSON.parse(btnEdit.dataset.eventProps);
+      const start = btnEdit.dataset.eventStartStr;
+      const m     = $('#editModal');
+      currentEditId = btnEdit.dataset.eventId;
+
+      // populate edit modal
+      $('#edit_data_interventie').val(start);
+      $('#edit_nume_pacient').val(ev2.nume_pacient);
+      $('#edit_tip_operatie_text').val(ev2.tip_operatie);
+      $('#edit_prioritate').val(ev2.prioritate);
+      $('#edit_priorityOptions .btn-prio').each((_,b)=>{
+        $(b).toggleClass('active', b.dataset.value===String(ev2.prioritate));
+      });
+      if(ev2.prioritate===3 && ev2.justificare_prioritate){
+        $('#edit_wrap_justificare').show();
+        $('#edit_justificare_prioritate').val(ev2.justificare_prioritate);
+      } else {
+        $('#edit_wrap_justificare').hide();
+        $('#edit_justificare_prioritate').val('');
+      }
+      $('#edit_constrangeri_speciale').val(ev2.constrangeri_speciale||'');
+      $('#edit_timp_estimare').val(ev2.timp_estimare||'');
+      $('#edit_observatii').val(ev2.observatii||'');
+      $('#edit_priorityOptions .btn-prio').removeClass('active');
+// Populezi hidden + active btn
+      $('#edit_prioritate').val(ev2.prioritate);
+      $(`#edit_priorityOptions .btn-prio[data-value="${ev2.prioritate}"]`).addClass('active');
+
+      m.modal('show');
+    };
+
+    // show detail
+    $('#detailModal').modal('show');
   }
-  function syncBtns() {
-    prioBtns.forEach(b=> b.classList.toggle('active', b.dataset.value===prioSelect.value));
+
+  // 4. filters
+  function applyFilter(t){
+    let f=allEventsRaw;
+    if(t==='approved') f=allEventsRaw.filter(e=>e.status==="Aprobat");
+    if(t==='pending')  f=allEventsRaw.filter(e=>e.status==="În Așteptare");
+    calendar.removeAllEvents();
+    calendar.addEventSource(mapEvents(f));
   }
-  prioBtns.forEach(b=>
-    b.addEventListener('click', ()=>{
-      prioSelect.value = b.dataset.value;
-      syncBtns();
-      toggleJust();
-    })
-  );
-  syncBtns();
-  toggleJust();
-});
+  $('#btnAll').click(()=>applyFilter('all'));
+  $('#btnPlanned').click(()=>applyFilter('approved'));
+  $('#btnPending').click(()=>applyFilter('pending'));
+  $('#filterToggle').click(()=>$('#filterDropdown').toggle());
+  $(document).click(e=>{
+    if(!$('#filterToggle').is(e.target) && $('#filterDropdown').has(e.target).length===0)
+      $('#filterDropdown').hide();
+  });
+
+  // 5. delete/next/status
+  $('#modalClose1,#modalClose2').click(()=>$('#eventModal').modal('hide'));
+  $('#modalDetailClose').click(()=>$('#detailModal').modal('hide'));
+  $('#delete-event-button').click(function(){
+    if(!confirm('Ştergi?')) return;
+    $.post(`/delete_event/${this.dataset.eventId}/`,{csrfmiddlewaretoken:'{{ csrf_token }}'})
+      .done(r=>{alert(r.message);location.reload();}).fail(()=>alert('Eroare!'));
+  });
+  $('#add-to-next-week').click(function(){
+    if(!confirm('Săptămâna viitoare?')) return;
+    $.post(`/next_week/${this.dataset.eventIdWeek}/`,{csrfmiddlewaretoken:'{{ csrf_token }}'})
+      .done(r=>{alert(r.message);location.reload();}).fail(()=>alert('Eroare!'));
+  });
+  $('#add-to-next-day').click(function(){
+    if(!confirm('Ziua viitoare?')) return;
+    $.post(`/next_day/${this.dataset.eventIdDay}/`,{csrfmiddlewaretoken:'{{ csrf_token }}'})
+      .done(r=>{alert(r.message);location.reload();}).fail(()=>alert('Eroare!'));
+  });
+  window.openStatusModal=(id,s)=>{
+    $('#statusModal').modal('show');
+    $('#eventStatusId').val(id);
+    $('#statusSelect').val(s);
+  };
+  $('#statusForm').submit(e=>{
+    e.preventDefault();
+    const id=$('#eventStatusId').val(), s=$('#statusSelect').val();
+    fetch(`/update_status/${id}/`,{
+      method:'POST',
+      headers:{'X-CSRFToken':'{{ csrf_token }}','Content-Type':'application/x-www-form-urlencoded'},
+      body:`status_live=${s}`
+    }).then(r=>r.json()).then(_=>{$('#statusModal').modal('hide');location.reload();});
+  });
+
+  // 6. websocket
+  const socket=new WebSocket(`ws://${window.location.host}/ws/board/`);
+  socket.onmessage=e=>{
+    const {event_id,status_live}=JSON.parse(e.data),
+          el=document.querySelector(`.surgery[data-id='${event_id}']`);
+    if(!el) return;
+    const cols={checked_in:'#4dabf7',anes_start:'#ff922b',surgery_start:'#e03131',pacu:'#5f3dc4',finalizat:'#2f9e44'};
+    el.style.backgroundColor=cols[status_live]||'';
+    el.insertAdjacentHTML('beforeend',`<div style="font-size:11px">🟢 ${status_live.replace('_',' ')}</div>`);
+  };
+  socket.onclose=()=>console.warn('WS closed');
+
+  // 7. editModal priority UI
+  $('#edit_priorityOptions .btn-prio').click(function(){
+    $('#edit_prioritate').val(this.dataset.value);
+    $('#edit_priorityOptions .btn-prio').removeClass('active');
+    $(this).addClass('active');
+    if(this.dataset.value==='3') $('#edit_wrap_justificare').show();
+    else { $('#edit_wrap_justificare').hide(); $('#edit_justificare_prioritate').val(''); }
+  });
+
+}); // end DOMContentLoaded
 </script>
 {% endblock extrascripts %}

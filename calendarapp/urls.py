@@ -64,6 +64,8 @@ urlpatterns = [
     path("asistenta/completate/", asistenta_completed_events, name="asistenta_completed_events"),
     path("asistenta/pacienti/", pacientii_asistentei, name="asistenta_pacienti"),
     path("schedule/move_bulk/",other_views.move_bulk_to_next_day, name="move_bulk"),
+    path('edit_event/<int:pk>/', other_views.edit_event, name='edit_event'),
+
 
 
 

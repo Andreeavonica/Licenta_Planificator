@@ -205,6 +205,8 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 "asistenta": f"{event.asistenta_alocata.first_name} {event.asistenta_alocata.last_name}" if event.asistenta_alocata else "Nespecificat",
                 "prioritate_display": event.get_prioritate_display(),
                 "justificare_prioritate": event.justificare_prioritate or "",
+                "timp_estimare": event.timp_estimare,
+
 
 
             })
@@ -750,3 +752,60 @@ def move_bulk_to_next_day(request):
         return JsonResponse({"message": f"{moved} operații mutate pentru ziua următoare."})
 
     return JsonResponse({"error": "Invalid method"}, status=405)
+# importă modelul Event, nu Operatie
+from calendarapp.models import Event  
+import json
+from django.http      import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.utils     import timezone
+def edit_event(request, pk):
+    # doar POST şi doar surgeon
+    if request.method != 'POST' or request.user.role != 'surgeon':
+        return JsonResponse({'success': False, 'error': 'Acces neautorizat'}, status=403)
+
+    payload = json.loads(request.body)
+    # obține valorile din JSON
+    # dacă preferi, poți redenumi în JS cheia la "timp_estimare"
+    estimare   = payload.get('estimare_timp')
+    observatii = payload.get('observatii')
+    prioritate = payload.get('prioritate')
+
+    # acum preluăm Event, nu Operatie
+    event = get_object_or_404(Event, pk=pk)
+
+    # verifică să fie cu cel puțin o zi înainte
+    # dacă data_interventie e DateTimeField, compari doar date:
+    days_left = (event.data_interventie.date() - timezone.now().date()).days
+    if days_left < 1:
+        return JsonResponse({
+            'success': False,
+            'error': 'Prea târziu pentru modificări.'
+        }, status=400)
+
+    # actualizează câmpurile corecte
+    if payload.get('data_interventie') is not None:
+        event.data_interventie = payload['data_interventie']
+    if payload.get('nume_pacient') is not None:
+        event.nume_pacient = payload['nume_pacient']
+    if payload.get('tip_operatie') is not None:
+        event.tip_operatie = payload['tip_operatie']
+    if payload.get('prioritate') is not None:
+        event.prioritate = payload['prioritate']
+    # doar dacă ai justificare (doar pentru prioritate urgentă)
+    if payload.get('justificare_prioritate') is not None:
+        event.justificare_prioritate = payload['justificare_prioritate']
+    if payload.get('constrangeri_speciale') is not None:
+        event.constrangeri_speciale = payload['constrangeri_speciale']
+    if payload.get('estimare_timp') is not None:
+        event.timp_estimare = payload['estimare_timp']
+    if payload.get('observatii') is not None:
+        event.observatii = payload['observatii']
+    alergii = payload.get('constrangeri_speciale')
+    if alergii is not None:
+        event.constrangeri_speciale = alergii
+    just = payload.get('justificare_prioritate')
+    if just is not None:
+        event.justificare_prioritate = just
+    event.save()
+
+    return JsonResponse({'success': True})
