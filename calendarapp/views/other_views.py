@@ -203,6 +203,8 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 "data_interventie": event.data_interventie.isoformat(),
                 "chirurg": f"{event.user.first_name} {event.user.last_name}",
                 "asistenta": f"{event.asistenta_alocata.first_name} {event.asistenta_alocata.last_name}" if event.asistenta_alocata else "Nespecificat",
+                "prioritate_display": event.get_prioritate_display(),
+                "justificare_prioritate": event.justificare_prioritate or "",
 
 
             })
@@ -717,6 +719,7 @@ def pacientii_asistentei(request):
         "tip": "asistenta"
     })
 
+
 @csrf_exempt
 @login_required
 def move_bulk_to_next_day(request):
@@ -747,3 +750,29 @@ def move_bulk_to_next_day(request):
         return JsonResponse({"message": f"{moved} operații mutate pentru ziua următoare."})
 
     return JsonResponse({"error": "Invalid method"}, status=405)
+from django.shortcuts import get_object_or_404, render, redirect
+from django.utils import timezone
+from datetime import timedelta
+
+from calendarapp.forms import EventForm
+from calendarapp.models import Event
+def edit_event(request, event_id):
+    event = get_object_or_404(Event, id=event_id, status='in_asteptare')
+
+    # only allow edits ≥1 day before
+    if event.data_interventie.date() - timezone.now().date() < timedelta(days=1):
+        return redirect('calendarapp:calendar')  # or show a friendly message
+
+    if request.method == 'POST':
+        form = EventForm(request.POST, instance=event)
+        if form.is_valid():
+            form.save()
+            return redirect('calendarapp:calendar')
+    else:
+        form = EventForm(instance=event)
+
+    return render(request, 'event.html', {
+        'form': form,
+        'edit_mode': True,
+        'event_id': event.id,
+    })

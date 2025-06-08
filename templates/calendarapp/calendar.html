@@ -463,6 +463,10 @@
               {% elif request.user.role == "assistant" %}
                 <div>Chirurg: {{ event.user.first_name }} {{ event.user.last_name }}</div>
               {% endif %}
+              <div>Prioritate: {{ event.get_prioritate_display }}</div>
+              {% if event.justificare_prioritate %}
+                <div>Justificare: {{ event.justificare_prioritate }}</div>
+              {% endif %}
 
               <div>Status: {{ event.get_status_display }}</div>
               {% if request.user.role == "assistant" %}
@@ -593,6 +597,9 @@
 
               <p id="constrangeri_speciale_detail"></p>
               <p id="observatii_detail"></p>
+              <p id="prioritate_detail"></p>
+              <p id="justificare_prioritate_detail" style="display:none;"></p>
+
               <p id="get_status_display"></p>
             </div>
             <div class="modal-footer">
@@ -675,6 +682,15 @@
         document.getElementById('constrangeri_speciale_detail').textContent = "Alergii: " + (ev.constrangeri_speciale || "N/A");
         document.getElementById('observatii_detail').textContent = "Observații: " + (ev.observatii || "N/A");
         document.getElementById('get_status_display').textContent = "Status: " + (ev.status || "N/A");
+        document.getElementById('prioritate_detail').textContent = "Prioritate: " + (ev.prioritate_display || "N/A");
+
+      if (ev.prioritate === 3 && ev.justificare_prioritate) {
+        document.getElementById('justificare_prioritate_detail').style.display = "block";
+        document.getElementById('justificare_prioritate_detail').textContent = "Justificare: " + ev.justificare_prioritate;
+      } else {
+        document.getElementById('justificare_prioritate_detail').style.display = "none";
+      }
+
         // Acces rol din contextul Django
         const userRole = "{{ request.user.role }}";
 
