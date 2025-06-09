@@ -2,6 +2,8 @@ from django.forms import ModelForm, DateInput
 from calendarapp.models import Event, EventMember
 from django import forms
 from calendarapp.models.event import Pacient  # sau doar `from .models import Pacient` dacă ai unificat
+from datetime import date
+
 
 class PacientForm(forms.ModelForm):
     class Meta:
@@ -93,6 +95,7 @@ class EventForm(forms.ModelForm):
         if timp is not None and (timp < 1 or timp > 480):
             raise ValidationError("Timpul estimat trebuie să fie între 1 și 480 minute.")
         return timp
+  
 
 
 

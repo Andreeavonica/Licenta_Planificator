@@ -442,6 +442,17 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
+.modal-footer {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.modal-footer .btn {
+  width: 100%;
+}
+.modal-footer:empty {
+  display: none;
+}
 
 </style>
 {% endblock extracss %}
@@ -830,6 +841,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
   }
   function onDateSelect(arg) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const selected = new Date(arg.start);
+      selected.setHours(0, 0, 0, 0);
+
+      if (selected < today) {
+        alert('Nu poți planifica o intervenție în trecut.');
+        calendar.unselect();
+        return;
+      }
+
+      if (selected.getTime() === today.getTime()) {
+        alert('Intervențiile trebuie programate cu cel puțin o zi în avans.');
+        calendar.unselect();
+        return;
+      }
   // 1. Puni data selectată în câmpul de creare
     document.getElementById('id_data_interventie').value = arg.startStr;
     
@@ -872,13 +900,35 @@ document.addEventListener('DOMContentLoaded', () => {
     else if(userRole==='assistant'){ chir.style.display=''; chir.textContent=`Chirurg: ${ev.chirurg||"N/A"}`; }
 
     // delete/next data
-    document.getElementById('delete-event-button').dataset.eventId     = arg.event.id;
-    document.getElementById('add-to-next-week').dataset.eventIdWeek   = arg.event.id;
-    document.getElementById('add-to-next-day').dataset.eventIdDay     = arg.event.id;
+    const btnEdit  = document.getElementById('edit-event-button');
+    const btnDel   = document.getElementById('delete-event-button');
+    const btnWeek  = document.getElementById('add-to-next-week');
+    const btnDay   = document.getElementById('add-to-next-day');
+
+    const isApproved   = status === "Aprobat";
+    const isAssistant  = userRole === "assistant";
+    const isLocked     = isApproved || isAssistant;
+
+    // ascundem și anulăm setările dacă blocat
+    if (isLocked) {
+      btnEdit.style.display = 'none';
+      btnDel.style.display  = 'none';
+      btnWeek.style.display = 'none';
+      btnDay.style.display  = 'none';
+    } else {
+      btnEdit.style.display = 'block';
+      btnDel.style.display  = 'block';
+      btnWeek.style.display = 'block';
+      btnDay.style.display  = 'block';
+
+      btnDel.dataset.eventId       = arg.event.id;
+      btnWeek.dataset.eventIdWeek  = arg.event.id;
+      btnDay.dataset.eventIdDay    = arg.event.id;
+}
+
 
     // edit button logic
     const diffDays=(new Date(arg.event.start)-new Date())/(1000*60*60*24);
-    const btnEdit=document.getElementById('edit-event-button');
     if(userRole==='surgeon' && diffDays>=1 && ev.status==="În Așteptare"){
       btnEdit.style.display='';
       btnEdit.dataset.eventId       = arg.event.id;
