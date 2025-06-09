@@ -435,6 +435,12 @@
   border: 1px solid #ced4da;
   padding: 6px 10px;
 }
+.btn-prio.active {
+  background-color: #009688 !important; /* Verdele aplicației */
+  color: white !important;
+  border-color: #009688 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
 
 
 </style>
@@ -547,9 +553,11 @@
                 <i class="fa fa-exclamation-triangle"></i>
                 <label>Prioritate:</label>
                 <div class="priority-buttons" id="priorityOptions">
-                  <button type="button" class="btn btn-prio" data-value="1">Normală</button>
-                  <button type="button" class="btn btn-prio" data-value="2">Ridicată</button>
-                  <button type="button" class="btn btn-prio" data-value="3">Urgentă</button>
+                  <!-- Asta reflectă exact valorile din models.py -->
+                  <button type="button" class="btn btn-prio" data-value="1">Scăzută</button>
+                  <button type="button" class="btn btn-prio" data-value="2">Normală</button>
+                  <button type="button" class="btn btn-prio" data-value="3">Înaltă</button>
+
                 </div>
                 {{ form.prioritate.as_hidden }}
               </div>
@@ -633,7 +641,7 @@
     <div class="modal-content">
       <div class="modal-header bg-primary">
         <h5 class="modal-title text-white">Editează Operație</h5>
-        <button id="modalEditClose" type="button" class="close"><span>&times;</span></button>
+          <button id="modalEditClose" type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
       </div>
       <form id="editForm">
         {% csrf_token %}
@@ -641,7 +649,9 @@
           <div class="form-icon-group">
             <i class="fa fa-calendar"></i>
             <label>Data Intervenției:</label>
-            <input type="date" id="edit_data_interventie" class="form-control" disabled />
+            <input type="date" id="edit_data_interventie"
+              class="form-control"
+              readonly />
           </div>
           <div class="form-icon-group">
             <i class="fa fa-user"></i>
@@ -651,15 +661,22 @@
           <div class="form-icon-group">
             <i class="fa fa-stethoscope"></i>
             <label>Tip Operație:</label>
-            <input type="text" id="edit_tip_operatie_text" class="form-control" />
+            <select id="edit_tip_operatie_select" class="form-control">
+              {% for operatie in operatii %}
+                <option value="{{ operatie.id }}">{{ operatie.Nume }}</option>
+              {% endfor %}
+            </select>
+
           </div>
           <div class="form-icon-group">
             <i class="fa fa-exclamation-triangle"></i>
             <label>Prioritate:</label>
             <div id="edit_priorityOptions" class="priority-buttons">
-              <button type="button" class="btn btn-prio" data-value="1">Normală</button>
-              <button type="button" class="btn btn-prio" data-value="2">Ridicată</button>
-              <button type="button" class="btn btn-prio" data-value="3">Urgentă</button>
+              <!-- Asta reflectă exact valorile din models.py -->
+              <button type="button" class="btn btn-prio" data-value="1">Scăzută</button>
+              <button type="button" class="btn btn-prio" data-value="2">Normală</button>
+              <button type="button" class="btn btn-prio" data-value="3">Înaltă</button>
+
             </div>
             <input type="hidden" id="edit_prioritate" />
           </div>
@@ -685,7 +702,7 @@
           </div>
         </div>
         <div class="modal-footer modal-footer-sticky">
-          <button id="modalEditCloseFooter" type="button" class="btn btn-danger">Închide</button>
+          <button id="modalEditCloseFooter" type="button" class="btn btn-danger" data-dismiss="modal">Închide</button>
           <button type="submit" class="btn btn-success">Salvează modificări</button>
         </div>
       </form>
@@ -727,6 +744,8 @@
 {% block extrascripts %}
 <script src="{% static 'calender/main.js' %}"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ro.js"></script>
+<script src="{% static 'js/bootstrap.min.js' %}"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Init
@@ -749,9 +768,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const payload = {
       estimare_timp: document.getElementById('edit_timp_estimare').value,
       observatii:   document.getElementById('edit_observatii').value,
-      prioritate:   document.getElementById('edit_prioritate').value,
+      prioritate: Number($('#edit_priorityOptions .btn-prio.active').data('value') || 0),
       constrangeri_speciale:  document.getElementById('edit_constrangeri_speciale').value,
       justificare_prioritate: document.getElementById('edit_justificare_prioritate').value,
+      tip_operatie_id: $('#edit_tip_operatie_select').val(),  // ⬅️ Asta e cheia!
+
     };
     fetch(`/edit_event/${currentEditId}/`, {
       method: 'POST',
@@ -804,20 +825,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
   }
   function onDateSelect(arg) {
+  // 1. Puni data selectată în câmpul de creare
     document.getElementById('id_data_interventie').value = arg.startStr;
-    // 1) Goalește starea anterioară
-    $('#edit_priorityOptions .btn-prio').removeClass('active');
-
-    // 2) Setează hidden-input-ul
-    $('#edit_prioritate').val(ev2.prioritate);
-
-    // 3) Bifează butonul cu valoarea curentă
-    $(`#edit_priorityOptions .btn-prio[data-value="${ev2.prioritate}"]`)
-      .addClass('active');
-
-        $('#eventModal').modal('show');
+    
+    // 2. Afișezi modalul de creare eveniment
+    $('#eventModal').modal('show');
+    
+    // 3. Ștergi selecția din calendar
     calendar.unselect();
-  }
+}
 
   function onEventClick(arg) {
     const ev = arg.event.extendedProps;
@@ -865,7 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnEdit.dataset.eventProps    = JSON.stringify({
         data_interventie:       ev.data_interventie,
         nume_pacient:           ev.nume_pacient,
-        tip_operatie:           ev.tip_operatie,
+        tip_operatie_id:        arg.event.extendedProps.tip_operatie_id,  // ✅ această linie lipsea
         prioritate:             ev.prioritate,
         justificare_prioritate: ev.justificare_prioritate,
         constrangeri_speciale:  ev.constrangeri_speciale,
@@ -880,41 +896,25 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Edit button found:", btnEdit);
     btnEdit.addEventListener('click', () => console.log("Edit clicked"));
 
-    btnEdit.onclick = () => {
-      currentEditId = btnEdit.dataset.eventId;
+  btnEdit.onclick = () => {
+  currentEditId = btnEdit.dataset.eventId;
+  const ev2 = JSON.parse(btnEdit.dataset.eventProps);
+  $('#detailModal').modal('hide');
+  if (ev2.tip_operatie_id) {
+    $('#edit_tip_operatie_select').val(String(ev2.tip_operatie_id));
+  }
+  // Setează câmpuri
+  $('#edit_data_interventie').val(new Date(ev2.data_interventie).toISOString().slice(0,10));
+  $('#edit_nume_pacient').val(ev2.nume_pacient);
+  $('#edit_constrangeri_speciale').val(ev2.constrangeri_speciale || '');
+  $('#edit_timp_estimare').val(ev2.timp_estimare || '');
+  $('#edit_observatii').val(ev2.observatii || '');
+  $('#edit_tip_operatie_select').val(ev2.tip_operatie_id);
 
-      console.log("▶️ Entered btnEdit.onclick");
-      $('#detailModal').modal('hide');
-      const ev2   = JSON.parse(btnEdit.dataset.eventProps);
-      const start = btnEdit.dataset.eventStartStr;
-      const m     = $('#editModal');
-      currentEditId = btnEdit.dataset.eventId;
 
-      // populate edit modal
-      $('#edit_data_interventie').val(start);
-      $('#edit_nume_pacient').val(ev2.nume_pacient);
-      $('#edit_tip_operatie_text').val(ev2.tip_operatie);
-      $('#edit_prioritate').val(ev2.prioritate);
-      $('#edit_priorityOptions .btn-prio').each((_,b)=>{
-        $(b).toggleClass('active', b.dataset.value===String(ev2.prioritate));
-      });
-      if(ev2.prioritate===3 && ev2.justificare_prioritate){
-        $('#edit_wrap_justificare').show();
-        $('#edit_justificare_prioritate').val(ev2.justificare_prioritate);
-      } else {
-        $('#edit_wrap_justificare').hide();
-        $('#edit_justificare_prioritate').val('');
-      }
-      $('#edit_constrangeri_speciale').val(ev2.constrangeri_speciale||'');
-      $('#edit_timp_estimare').val(ev2.timp_estimare||'');
-      $('#edit_observatii').val(ev2.observatii||'');
-      $('#edit_priorityOptions .btn-prio').removeClass('active');
-// Populezi hidden + active btn
-      $('#edit_prioritate').val(ev2.prioritate);
-      $(`#edit_priorityOptions .btn-prio[data-value="${ev2.prioritate}"]`).addClass('active');
+  $('#editModal').modal('show');
+};
 
-      m.modal('show');
-    };
 
     // show detail
     $('#detailModal').modal('show');
@@ -981,16 +981,40 @@ document.addEventListener('DOMContentLoaded', () => {
     el.insertAdjacentHTML('beforeend',`<div style="font-size:11px">🟢 ${status_live.replace('_',' ')}</div>`);
   };
   socket.onclose=()=>console.warn('WS closed');
+ // ─── Prioritate UI ───Add commentMore actions
+ const prioSelect = document.getElementById('id_prioritate'),
+      prioBtns   = document.querySelectorAll('.btn-prio'),
+      justWrap   = document.getElementById('wrap_justificare'),
+      justInp    = document.getElementById('id_justificare_prioritate');
 
-  // 7. editModal priority UI
-  $('#edit_priorityOptions .btn-prio').click(function(){
-    $('#edit_prioritate').val(this.dataset.value);
-    $('#edit_priorityOptions .btn-prio').removeClass('active');
-    $(this).addClass('active');
-    if(this.dataset.value==='3') $('#edit_wrap_justificare').show();
-    else { $('#edit_wrap_justificare').hide(); $('#edit_justificare_prioritate').val(''); }
+function toggleJustificare() {
+  if (prioSelect.value === '3') {
+    justWrap.style.display = '';
+  } else {
+    justWrap.style.display = 'none';
+    if (justInp) justInp.value = '';
+  }
+}
+
+function syncBtns() {
+  prioBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === prioSelect.value);
   });
+}
+
+prioBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    prioSelect.value = btn.dataset.value;
+    syncBtns();
+    toggleJustificare();
+  });
+});
+
+// Sincronizare inițială
+syncBtns();
+toggleJustificare();
 
 }); // end DOMContentLoaded
 </script>
 {% endblock extrascripts %}
+

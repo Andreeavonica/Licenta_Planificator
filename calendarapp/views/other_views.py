@@ -49,6 +49,7 @@ def next_month(d):
 
 
 class CalendarView(LoginRequiredMixin, generic.ListView):
+
     login_url = "accounts:signin"
     model = Event
     template_name = "calendar.html"
@@ -127,6 +128,7 @@ class EventMemberDeleteView(generic.DeleteView):
 from datetime import datetime  # Asigură-te că ai importat datetime
 
 class CalendarViewNew(LoginRequiredMixin, generic.View):
+
     login_url = "accounts:signin"
     template_name = "calendarapp/calendar.html"
     form_class = EventForm
@@ -206,6 +208,10 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 "prioritate_display": event.get_prioritate_display(),
                 "justificare_prioritate": event.justificare_prioritate or "",
                 "timp_estimare": event.timp_estimare,
+                "data_interventie": event.data_interventie.isoformat(),
+                "tip_operatie_id": event.tip_operatie.id if event.tip_operatie else None,
+
+
 
 
 
@@ -214,7 +220,6 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
         notifications = []
         if request.user.is_authenticated:
             notifications = request.user.notifications.filter(is_read=False)[:5]
-
         context = {
             "form": forms,
             "events": event_list,
@@ -222,6 +227,9 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
             "status_filter": status_filter,
             "notifications": notifications,
         }
+        from calendarapp.models.event import Operatie
+        context["operatii"] = Operatie.objects.all()
+
         return render(request, self.template_name, context)
 
 
@@ -759,6 +767,8 @@ from django.http      import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils     import timezone
 def edit_event(request, pk):
+    from calendarapp.models.event import Operatie
+
     # doar POST şi doar surgeon
     if request.method != 'POST' or request.user.role != 'surgeon':
         return JsonResponse({'success': False, 'error': 'Acces neautorizat'}, status=403)
@@ -783,12 +793,16 @@ def edit_event(request, pk):
         }, status=400)
 
     # actualizează câmpurile corecte
+    tip_operatie_id = payload.get("tip_operatie_id")
+    if tip_operatie_id:
+        operatie = Operatie.objects.filter(id=tip_operatie_id).first()
+        if operatie:
+            event.tip_operatie = operatie
     if payload.get('data_interventie') is not None:
         event.data_interventie = payload['data_interventie']
     if payload.get('nume_pacient') is not None:
         event.nume_pacient = payload['nume_pacient']
-    if payload.get('tip_operatie') is not None:
-        event.tip_operatie = payload['tip_operatie']
+   
     if payload.get('prioritate') is not None:
         event.prioritate = payload['prioritate']
     # doar dacă ai justificare (doar pentru prioritate urgentă)
