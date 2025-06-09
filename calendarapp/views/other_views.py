@@ -204,7 +204,9 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
             event_list.append({
                 "id": event.id,
                 "title": title,
-                "start": f"{event.data_interventie.strftime('%Y-%m-%d')}T00:00:00",
+                "start": f"{event.data_interventie.strftime('%Y-%m-%d')}T{event.ora_inceput.strftime('%H:%M:%S') if event.ora_inceput else '00:00:00'}",
+                "end": f"{event.data_interventie.strftime('%Y-%m-%d')}T{event.ora_sfarsit.strftime('%H:%M:%S') if event.ora_sfarsit else '00:00:00'}",
+
                 "status": event.get_status_display(),
                 "sala_alocata": event.sala_alocata,
                 "tip_operatie": tip_operatie,
