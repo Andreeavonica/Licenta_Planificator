@@ -169,16 +169,19 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
                 is_active=True,
                 is_deleted=False,
                 status="aprobat",
-                data_interventie__gte=datetime.now().date()
-            ).order_by("data_interventie")
+                data_interventie__gte=datetime.now().date(),
+                status_live__isnull=False  # doar dacă folosești acest câmp
+            ).exclude(status_live="finalizat").order_by("data_interventie")
         else:
             events_month = Event.objects.filter(
                 user=request.user,
                 is_active=True,
                 is_deleted=False,
                 status="aprobat",
-                data_interventie__gte=datetime.now().date()
-            ).order_by("data_interventie")
+                data_interventie__gte=datetime.now().date(),
+                status_live__isnull=False
+            ).exclude(status_live="finalizat").order_by("data_interventie")
+
 
         event_list = []
 
