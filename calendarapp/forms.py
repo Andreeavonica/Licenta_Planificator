@@ -23,6 +23,7 @@ from calendarapp.models.event import Event, Pacient
 
 from django import forms
 from calendarapp.models.event import Event, Pacient
+from django.core.exceptions import ValidationError
 
 class EventForm(forms.ModelForm):
     # (păstrezi câmpul existent de selecție pacient)
@@ -55,7 +56,12 @@ class EventForm(forms.ModelForm):
             "justificare_prioritate": forms.TextInput(attrs={"class": "form-control",
                                                              "placeholder": "Necesar doar pentru Prioritate Înaltă"}),
             "constrangeri_speciale": forms.Textarea(attrs={"class": "form-control"}),
-            "timp_estimare": forms.NumberInput(attrs={"class": "form-control"}),
+            "timp_estimare": forms.NumberInput(attrs={
+                "class": "form-control",
+                "min": 1,
+                "max": 480,
+                "placeholder": "ex: 90"
+            }),
             "data_interventie": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
             "observatii": forms.Textarea(attrs={"class": "form-control"}),
         }
@@ -82,6 +88,11 @@ class EventForm(forms.ModelForm):
             self.add_error("justificare_prioritate",
                            "Trebuie să completați justificarea pentru Prioritate Înaltă.")
         return cleaned
+    def clean_timp_estimare(self):
+        timp = self.cleaned_data.get("timp_estimare")
+        if timp is not None and (timp < 1 or timp > 480):
+            raise ValidationError("Timpul estimat trebuie să fie între 1 și 480 minute.")
+        return timp
 
 
 
