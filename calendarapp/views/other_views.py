@@ -258,37 +258,52 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
 
 
 
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import get_object_or_404
+from calendarapp.models import Event
+
+from calendarapp.models.event import Event, Pacient
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+
+@login_required
 def delete_event(request, event_id):
-    event = get_object_or_404(Event, id=event_id)
-    if request.method == "POST":
-        event.delete()
-        return JsonResponse({"message": "Event successfully deleted."})
-    else:
-        return JsonResponse({"message": "Error!"}, status=400)
+    event = get_object_or_404(Event, id=event_id, user=request.user)
+
+    # Pas 1: dacă evenimentul are un pacient asociat
+    pacient = Pacient.objects.filter(nume_complet=event.nume_pacient, chirurg=request.user).first()
+
+    # Pas 2: marcare ca șters
+    event.delete()  # sau event.is_deleted = True + event.save()
+
+    # Pas 3: actualizăm statusul pacientului
+    if pacient:
+        pacient.status = "neprogramat"
+        pacient.save()
+
+    return JsonResponse({"message": "Intervenția a fost ștearsă."})
 
 
 def next_week(request, event_id):
     event = get_object_or_404(Event, id=event_id)
     if request.method == "POST":
-        next_event = event
-        next_event.id = None
-        next_event.data_interventie += timedelta(days=7)
-        next_event.save()
+        event.data_interventie += timedelta(days=7)
+        event.save()
         return JsonResponse({"message": "Success!"})
     else:
         return JsonResponse({"message": "Error!"}, status=400)
+
 
 
 def next_day(request, event_id):
     event = get_object_or_404(Event, id=event_id)
     if request.method == "POST":
-        next_event = event
-        next_event.id = None
-        next_event.data_interventie += timedelta(days=1)
-        next_event.save()
+        event.data_interventie += timedelta(days=1)
+        event.save()
         return JsonResponse({"message": "Success!"})
     else:
         return JsonResponse({"message": "Error!"}, status=400)
+
 
 
 
