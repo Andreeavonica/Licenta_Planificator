@@ -449,8 +449,6 @@ from django.contrib.auth.decorators import login_required
 
 
 
-
-
 @csrf_exempt
 @login_required
 def ajax_adauga_pacient(request):
@@ -458,8 +456,8 @@ def ajax_adauga_pacient(request):
         form = PacientForm(request.POST)
         if form.is_valid():
             pacient = form.save(commit=False)
-            pacient.chirurg = request.user
-            pacient.status = "neprogramat"  # 🔁 Setăm statusul automat
+            pacient.chirurg = request.user     # <-- ASTA E ESENȚIAL!
+            pacient.status = "neprogramat"     # <-- Să nu uite statusul default!
             pacient.save()
             return JsonResponse({
                 "success": True,
@@ -472,12 +470,12 @@ def ajax_adauga_pacient(request):
                     "adresa": pacient.adresa,
                     "istoric": pacient.istoric_medical,
                     "status_display": pacient.get_status_display(),
-
                 }
             })
         else:
             return JsonResponse({"success": False, "errors": form.errors})
     return JsonResponse({"success": False, "message": "Method not allowed"}, status=405)
+
 @login_required
 def pacienti_in_asteptare(request):
     events = Event.objects.filter(user=request.user, status="in_asteptare")

@@ -311,6 +311,51 @@ $(document).ready(function () {
 
         // Adaugă noul pacient în tabel
         table.row.add([
+          data.pacient.nume,          // Nume
+          data.pacient.cnp,           // CNP
+          data.pacient.sex,           // Sex
+          data.pacient.telefon || "", // Telefon
+          data.pacient.adresa || "",  // Adresă
+          data.pacient.nastere,       // Data nașterii
+          data.pacient.istoric || "", // Istoric medical
+          data.pacient.status_display || "Neprogramat" // Status
+        ]).draw(false);
+        form.reset();
+      } else {
+        alert("Eroare la salvare. Verifică câmpurile.");
+      }
+    })
+    .catch((err) => {
+      console.error("Eroare AJAX:", err);
+    });
+  });
+});
+$(document).ready(function () {
+  let table = $('#sampleTable').DataTable();
+
+  document.getElementById("pacient-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+
+    fetch("{% url 'calendarapp:ajax_adauga_pacient' %}", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": form.querySelector("[name='csrfmiddlewaretoken']").value,
+      },
+      body: formData,
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.success) {
+        $("#addPacientModal").modal("hide");
+
+        // Elimină corect rândul cu colspan (dacă există)
+        $('#sampleTable tbody td[colspan]').closest('tr').remove();
+
+        // Adaugă pacientul: 8 coloane, exact ca <thead>!
+        table.row.add([
           data.pacient.nume,
           data.pacient.cnp,
           data.pacient.sex,
@@ -323,7 +368,7 @@ $(document).ready(function () {
 
         form.reset();
       } else {
-        alert("Eroare la salvare. Verifică câmpurile.");
+        alert("Eroare la salvare. Verifică câmpurile!");
       }
     })
     .catch((err) => {
