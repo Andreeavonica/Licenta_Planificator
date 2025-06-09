@@ -548,11 +548,7 @@
                 {{ form.pacient_selectat }}
               </div>
 
-              <div class="form-icon-group">
-                <i class="fa fa-user"></i>
-                <label>Nume pacient:</label>
-                {{ form.nume_pacient }}
-              </div>
+              
 
               <div class="form-icon-group">
                 <i class="fa fa-stethoscope"></i>
@@ -959,7 +955,11 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#edit_tip_operatie_select').val(String(ev2.tip_operatie_id));
   }
   // Setează câmpuri
-  $('#edit_data_interventie').val(new Date(ev2.data_interventie).toISOString().slice(0,10));
+  const date = new Date(ev2.data_interventie);
+  const localDateStr = date.getFullYear() + "-" +
+    String(date.getMonth() + 1).padStart(2, '0') + "-" +
+    String(date.getDate()).padStart(2, '0');
+  $('#edit_data_interventie').val(localDateStr);
   $('#edit_nume_pacient').val(ev2.nume_pacient);
   $('#edit_constrangeri_speciale').val(ev2.constrangeri_speciale || '');
   $('#edit_timp_estimare').val(ev2.timp_estimare || '');

@@ -69,7 +69,13 @@ class CalendarView(LoginRequiredMixin, generic.ListView):
 def create_event(request):
     form = EventForm(request.POST or None)
     if request.POST and form.is_valid():
-        nume_pacient = form.cleaned_data["nume_pacient"]
+        pacient = form.cleaned_data.get("pacient_selectat")
+        if pacient:
+                nume_pacient = pacient.nume_complet
+                pacient.status = "in_asteptare"
+                pacient.save()
+        else:
+                nume_pacient = "Necunoscut"
         tip_operatie = form.cleaned_data["tip_operatie"]
         constrangeri_speciale = form.cleaned_data["constrangeri_speciale"]
         timp_estimare = form.cleaned_data["timp_estimare"]

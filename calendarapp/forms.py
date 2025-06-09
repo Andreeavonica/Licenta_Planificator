@@ -39,7 +39,6 @@ class EventForm(forms.ModelForm):
     class Meta:
         model = Event
         fields = [
-            "nume_pacient",
             "pacient_selectat",
             "tip_operatie",
             "prioritate",                # ⬅️  nou
@@ -72,6 +71,8 @@ class EventForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+        if "nume_pacient" in self.fields:
+            self.fields["nume_pacient"].widget = forms.HiddenInput()
 
         self.fields["data_interventie"].input_formats = ("%Y-%m-%dT%H:%M",)
 
@@ -84,12 +85,18 @@ class EventForm(forms.ModelForm):
     # —————————— validare ——————————
     def clean(self):
         cleaned = super().clean()
+        pacient = cleaned.get("pacient_selectat")
+
+        if pacient:
+            cleaned["nume_pacient"] = pacient.nume_complet  # sau .__str__()
+
         prio = cleaned.get("prioritate")
         just = cleaned.get("justificare_prioritate", "")
         if prio == 3 and not just.strip():
-            self.add_error("justificare_prioritate",
-                           "Trebuie să completați justificarea pentru Prioritate Înaltă.")
+            self.add_error("justificare_prioritate", "Trebuie să completați justificarea pentru Prioritate Înaltă.")
+
         return cleaned
+    
     def clean_timp_estimare(self):
         timp = self.cleaned_data.get("timp_estimare")
         if timp is not None and (timp < 1 or timp > 480):
