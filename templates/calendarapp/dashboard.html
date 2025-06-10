@@ -6,7 +6,7 @@
 {% block breadcrumb %}
 <div>
   <h1 class="text-2xl font-semibold flex items-center gap-2"><i class="fa fa-chart-line"></i> Dashboard Optimizare</h1>
-  <p class="text-sm text-muted">Analiză vizuală a performanței algoritmului de planificare</p>
+  <p class="text-sm text-muted">Analiză vizuală completă a performanței algoritmului de planificare</p>
 </div>
 <ul class="app-breadcrumb breadcrumb">
   <li class="breadcrumb-item"><i class="fa fa-home fa-lg"></i></li>
@@ -17,82 +17,319 @@
 {% block content %}
 <style>
   .dashboard-container {
-    background: #f8f9fa;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
     padding: 2rem;
-    border-radius: 16px;
   }
-  .card {
-    border: none;
-    background: #ffffff;
-    transition: transform 0.2s ease;
-  }
-  .card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-  }
-  .tile {
-    background: #ffffff;
+  
+  .glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
   }
-  h5 {
+  
+  .glass-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  }
+  
+  .kpi-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    height: 100%;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+  }
+  
+  .kpi-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+  }
+  
+  .kpi-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+  
+  .kpi-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .chart-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    padding: 1.5rem;
+    height: 400px;
+    position: relative;
+  }
+  
+  .chart-title {
     color: #343a40;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+  }
+  
+  .metric-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-size: 0.85rem;
     font-weight: 600;
+    margin: 0.25rem;
+  }
+  
+  .loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+  
+  @keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  .section-header {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+  
+  .priority-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+  }
+  
+  .priority-1 { background-color: #dc3545; }
+  .priority-2 { background-color: #ffc107; }
+  .priority-3 { background-color: #28a745; }
+  
+  .complexity-bar {
+    height: 20px;
+    background: linear-gradient(90deg, #28a745, #ffc107, #fd7e14, #dc3545);
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .no-data-message {
+    text-align: center;
+    color: white;
+    font-size: 1.2rem;
+    padding: 3rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
   }
 </style>
 
 <div class="dashboard-container">
+  <!-- Loading/No Data Message -->
+  <div id="no-data-message" class="no-data-message">
+    <i class="fa fa-info-circle fa-2x mb-3"></i>
+    <p>Nu există date de planificare disponibile.</p>
+    <p class="text-sm">Rulați algoritmul de optimizare pentru a vizualiza rezultatele.</p>
+  </div>
+
+  <!-- KPI Cards Section -->
+  <div class="section-header" id="kpi-header" style="display: none;">
+    <i class="fa fa-tachometer-alt"></i> Indicatori Cheie de Performanță
+  </div>
+  
   <div class="row g-4 mb-5" id="kpi-cards" style="display: none;">
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm p-3 rounded-3 text-center h-100">
-        <p class="text-muted mb-1">Total intervenții</p>
-        <h2 class="fw-bold" id="totalSurgeries">-</h2>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-value" id="totalSurgeries">-</div>
+        <div class="kpi-label">Total Intervenții</div>
       </div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm p-3 rounded-3 text-center h-100">
-        <p class="text-muted mb-1">Rata programare</p>
-        <h2 class="fw-bold" id="avgUtil">-</h2>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-value" id="avgUtil">-</div>
+        <div class="kpi-label">Rata Programare</div>
       </div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm p-3 rounded-3 text-center h-100">
-        <p class="text-muted mb-1">Operații neprogramate</p>
-        <h2 class="fw-bold text-danger" id="unscheduledCount">-</h2>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-value text-danger" id="unscheduledCount">-</div>
+        <div class="kpi-label">Neprogramate</div>
       </div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm p-3 rounded-3 text-center h-100">
-        <p class="text-muted mb-1">Utilizare săli</p>
-        <h2 class="fw-bold" id="avgRoomUtil">-</h2>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-value" id="avgRoomUtil">-</div>
+        <div class="kpi-label">Utilizare Săli</div>
       </div>
     </div>
   </div>
 
-  <div class="tile p-4 rounded-4 shadow-sm" id="charts-block" style="display: none;">
-    <div class="row g-5">
-      <div class="col-lg-6">
-        <h5 class="text-center mb-2">Utilizare săli (%)</h5>
-        <canvas id="roomUtilChart" height="220"></canvas>
+  <!-- Additional KPIs -->
+  <div class="row g-4 mb-5" id="extended-kpis" style="display: none;">
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-value" id="avgComplexity">-</div>
+        <div class="kpi-label">Complexitate Medie</div>
       </div>
-      <div class="col-lg-6">
-        <h5 class="text-center mb-2">Încărcare asistente (sarcini)</h5>
-        <canvas id="nurseLoadChart" height="220"></canvas>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-value" id="cleanSurgeryPct">-</div>
+        <div class="kpi-label">% Operații Curate</div>
       </div>
-      <div class="col-lg-6">
-        <h5 class="text-center mb-2">Încărcare doctori (sarcini)</h5>
-        <canvas id="doctorLoadChart" height="220"></canvas>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-value" id="longSurgeryPct">-</div>
+        <div class="kpi-label">% Operații Lungi</div>
       </div>
-      <div class="col-lg-6">
-        <h5 class="text-center mb-2">Costuri algoritm (componentă)</h5>
-        <canvas id="costChart" height="220"></canvas>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-value" id="emergencyRooms">-</div>
+        <div class="kpi-label">Săli Rezervate</div>
       </div>
+    </div>
+  </div>
+
+  <!-- Charts Section -->
+  <div class="section-header" id="charts-header" style="display: none;">
+    <i class="fa fa-chart-bar"></i> Analiză Detaliată de Performanță
+  </div>
+
+  <div class="glass-card p-4" id="charts-block" style="display: none;">
+    <div class="row g-4">
+      <!-- Room Utilization -->
       <div class="col-lg-6">
-        <h5 class="text-center mb-2">Timp chirurgie vs curățare</h5>
-        <canvas id="timeBreakChart" height="220"></canvas>
+        <div class="chart-container">
+          <div class="chart-title">Utilizare Săli de Operație (%)</div>
+          <canvas id="roomUtilChart"></canvas>
+        </div>
       </div>
+      
+      <!-- Surgery Distribution by Priority -->
       <div class="col-lg-6">
-        <h5 class="text-center mb-2">Timp inactiv per sală (minute)</h5>
-        <canvas id="idleChart" height="220"></canvas>
+        <div class="chart-container">
+          <div class="chart-title">Distribuție Intervenții pe Prioritate</div>
+          <canvas id="priorityChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Complexity Analysis -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Analiza Complexității Intervențiilor</div>
+          <canvas id="complexityChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Surgery Types Distribution -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Tipuri de Intervenții</div>
+          <canvas id="surgeryTypesChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Nurse Workload -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Încărcare Asistente Medicale</div>
+          <canvas id="nurseLoadChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Doctor Workload -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Încărcare Chirurgi</div>
+          <canvas id="doctorLoadChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Cost Breakdown -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Analiza Costurilor Algoritmului</div>
+          <canvas id="costChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Surgery Duration vs Cleaning Time -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Timp Intervenție vs Curățare</div>
+          <canvas id="timeBreakChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Timeline Analysis -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Distribuția Intervențiilor pe Ore</div>
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Room Idle Time -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Timp Inactiv per Sală (minute)</div>
+          <canvas id="idleChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Long Surgery Analysis -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Performanța Operațiilor Lungi (>2h)</div>
+          <canvas id="longSurgeryChart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Clean vs Dirty Surgery Efficiency -->
+      <div class="col-lg-6">
+        <div class="chart-container">
+          <div class="chart-title">Eficiența Operații Curate vs Murdare</div>
+          <canvas id="cleanDirtyChart"></canvas>
+        </div>
       </div>
     </div>
   </div>
@@ -105,116 +342,454 @@
 document.addEventListener("DOMContentLoaded", () => {
   const data = JSON.parse(sessionStorage.getItem("lastScheduleData"));
   const date = sessionStorage.getItem("lastScheduleDate");
-  if (!data || !date) return;
+  
+  if (!data || !date) {
+    document.getElementById("no-data-message").style.display = "block";
+    return;
+  }
+
+  // Hide no-data message and show dashboard
+  document.getElementById("no-data-message").style.display = "none";
+  document.getElementById("kpi-header").style.display = "block";
+  document.getElementById("kpi-cards").style.display = "flex";
+  document.getElementById("extended-kpis").style.display = "flex";
+  document.getElementById("charts-header").style.display = "block";
+  document.getElementById("charts-block").style.display = "block";
 
   const timetable = data.room_allocations;
-  let totalSurgeries = 0, totalUsedMinutes = 0, totalSlots = 0, unscheduledCount = 0;
   const DAY_START = 480, DAY_END = 1020;
-  const room_labels = [], room_util_pct = [], asistenta_counts = {}, doctor_counts = {}, idle_per_room = [];
-  let clean_total = 0, dirty_penalty = 0;
-
+  
+  // Data collection variables
+  let totalSurgeries = 0, totalUsedMinutes = 0, totalSlots = 0, unscheduledCount = 0;
+  let totalCleaningTime = 0, totalSurgeryTime = 0;
+  let complexitySum = 0, cleanSurgeries = 0, longSurgeries = 0;
+  let priorityCount = {1: 0, 2: 0, 3: 0};
+  let surgeryTypes = {};
+  let hourlyDistribution = new Array(24).fill(0);
+  let emergencyRoomCount = 0;
+  
+  const room_labels = [], room_util_pct = [], room_idle_times = [];
+  const nurse_counts = {}, doctor_counts = {};
+  
+  // Process timetable data
   timetable.forEach(room => {
-  // ✅ Nu excludem nimic – analizăm și sala „neplanificate”
-  const roomName = typeof room.room === "string" ? room.room : "Sală " + room.room;
-  if (room.room !== "neplanificate" && room.room !== "neplanificată") {
-    room_labels.push(roomName);
-  }
+    const roomName = typeof room.room === "string" ? room.room : `Sală ${room.room}`;
+    
+    if (room.reserved_emergency) {
+      emergencyRoomCount++;
+      return;
+    }
+    
+    if (room.room !== "neplanificate" && room.room !== "neplanificată") {
+      room_labels.push(roomName);
+    }
 
-  let used = 0, idle = 0, lastEnd = DAY_START;
+    let roomUsedMinutes = 0, lastEnd = DAY_START;
 
-  room.schedule.forEach(ev => {
-    if (ev.unscheduled) unscheduledCount++;
+    room.schedule.forEach(ev => {
+      if (ev.reserved) return; // Skip reserved emergency slots
+      
+      totalSurgeries++;
+      
+      if (ev.unscheduled) {
+        unscheduledCount++;
+        return;
+      }
 
-    if (!ev.start_time || !ev.end_time) return;
+      // Parse times
+      const [sh, sm] = ev.start_time.split(":").map(Number);
+      const [eh, em] = ev.end_time.split(":").map(Number);
+      const start = sh * 60 + sm;
+      const end = eh * 60 + em;
+      const duration = end - start;
+      
+      roomUsedMinutes += duration;
+      totalSurgeryTime += duration;
+      totalCleaningTime += (ev.clean_time || 0);
+      
+      // Hourly distribution
+      hourlyDistribution[sh]++;
+      
+      // Surgery types
+      const type = ev.type || "Necunoscut";
+      surgeryTypes[type] = (surgeryTypes[type] || 0) + 1;
+      console.log("DEBUG type", ev.type, ev);
 
-    const [sh, sm] = ev.start_time.split(":").map(Number);
-    const [eh, em] = ev.end_time.split(":").map(Number);
-    const start = sh * 60 + sm;
-    const end = eh * 60 + em;
-    used += (end - start);
-    idle += Math.max(0, start - lastEnd);
-    lastEnd = end;
+      // Priority analysis (extract from duration or assign default)
+      const priority = ev.priority || (duration > 180 ? 1 : duration > 120 ? 2 : 3);
+      priorityCount[priority]++;
+      
+      // Complexity analysis (estimate based on duration and type)
+      const complexity = ev.complexity || Math.min(3, Math.floor(duration / 60) + 1);
+      complexitySum += complexity;
+      
+      // Clean/dirty classification
+      if (ev.is_clean) cleanSurgeries++;
+      
+      // Long surgery classification
+      if (duration > 120) longSurgeries++;
+      
+      // Staff counting
+      if (ev.nurse && ev.nurse !== "-") {
+        nurse_counts[ev.nurse] = (nurse_counts[ev.nurse] || 0) + 1;
+      }
+      if (ev.surgeon && ev.surgeon !== "-") {
+        doctor_counts[ev.surgeon] = (doctor_counts[ev.surgeon] || 0) + 1;
+      }
+    });
 
-    totalSurgeries++;
-    clean_total += ev.clean_time || 0;
-    if (!ev.is_clean) dirty_penalty += 30;
-
-    asistenta_counts[ev.nurse || "-"] = (asistenta_counts[ev.nurse || "-"] || 0) + 1;
-    doctor_counts[ev.surgeon || "-"] = (doctor_counts[ev.surgeon || "-"] || 0) + 1;
+    // Room utilization calculation
+    if (room.room !== "neplanificate" && room.room !== "neplanificată") {
+      const utilPct = Math.round((roomUsedMinutes / (DAY_END - DAY_START)) * 100);
+      room_util_pct.push(utilPct);
+      
+      // Idle time calculation
+      let idleTime = 0, prevEnd = DAY_START;
+      room.schedule.forEach(ev => {
+        if (ev.reserved || ev.unscheduled) return;
+        const [sh, sm] = ev.start_time.split(":").map(Number);
+        const start = sh * 60 + sm;
+        idleTime += Math.max(0, start - prevEnd);
+        const [eh, em] = ev.end_time.split(":").map(Number);
+        prevEnd = eh * 60 + em;
+      });
+      idleTime += Math.max(0, DAY_END - prevEnd);
+      room_idle_times.push(idleTime);
+      
+      totalUsedMinutes += roomUsedMinutes;
+      totalSlots += (DAY_END - DAY_START);
+    }
   });
 
-  idle += Math.max(0, DAY_END - lastEnd);
-  idle_per_room.push(idle);
-  if (room.room !== "neplanificate" && room.room !== "neplanificată") {
-    room_util_pct.push(Math.round((used / (DAY_END - DAY_START)) * 100));
-    totalUsedMinutes += used;
-    totalSlots += (DAY_END - DAY_START);
-  }
-});
+  // Calculate KPIs
+  const schedulingRate = totalSurgeries > 0 ? Math.round(((totalSurgeries - unscheduledCount) / totalSurgeries) * 100) : 0;
+  const avgRoomUtil = room_util_pct.length > 0 ? (room_util_pct.reduce((a,b)=>a+b,0)/room_util_pct.length).toFixed(1) : 0;
+  const avgComplexity = totalSurgeries > 0 ? (complexitySum / totalSurgeries).toFixed(1) : 0;
+  const cleanSurgeryPct = totalSurgeries > 0 ? Math.round((cleanSurgeries / totalSurgeries) * 100) : 0;
+  const longSurgeryPct = totalSurgeries > 0 ? Math.round((longSurgeries / totalSurgeries) * 100) : 0;
 
-
-  document.getElementById("kpi-cards").style.display = "flex";
-  document.getElementById("charts-block").style.display = "block";
+  // Update KPI displays
   document.getElementById("totalSurgeries").textContent = totalSurgeries;
-  let totalRequested = 0, totalScheduled = 0;
+  document.getElementById("avgUtil").textContent = schedulingRate + "%";
+  document.getElementById("unscheduledCount").textContent = unscheduledCount;
+  document.getElementById("avgRoomUtil").textContent = avgRoomUtil + "%";
+  document.getElementById("avgComplexity").textContent = avgComplexity;
+  document.getElementById("cleanSurgeryPct").textContent = cleanSurgeryPct + "%";
+  document.getElementById("longSurgeryPct").textContent = longSurgeryPct + "%";
+  document.getElementById("emergencyRooms").textContent = emergencyRoomCount;
 
+  // Chart configuration
+  const modernPalette = [
+    '#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe',
+    '#43e97b', '#38f9d7', '#ffecd2', '#fcb69f', '#a8edea', '#fed6e3'
+  ];
+  
+  const chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          padding: 20,
+          usePointStyle: true,
+          font: { size: 11 }
+        }
+      }
+    }
+  };
+
+  // 1. Room Utilization Chart
+  new Chart("roomUtilChart", {
+    type: "bar",
+    data: {
+      labels: room_labels,
+      datasets: [{
+        label: "% Ocupare",
+        data: room_util_pct,
+        backgroundColor: modernPalette[0],
+        borderColor: modernPalette[1],
+        borderWidth: 2,
+        borderRadius: 8
+      }]
+    },
+    options: {
+      ...chartDefaults,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: value => value + '%' }
+        }
+      }
+    }
+  });
+
+  // 2. Priority Distribution Chart
+  new Chart("priorityChart", {
+    type: "doughnut",
+    data: {
+      labels: ["Prioritate Înaltă", "Prioritate Medie", "Prioritate Scăzută"],
+      datasets: [{
+        data: [priorityCount[1], priorityCount[2], priorityCount[3]],
+        backgroundColor: ['#dc3545', '#ffc107', '#28a745'],
+        borderWidth: 3,
+        borderColor: '#fff'
+      }]
+    },
+    options: chartDefaults
+  });
+
+  // 3. Complexity Analysis
+  const complexityData = [0, 0, 0, 0]; // complexity levels 0-3
   timetable.forEach(room => {
-    if (room.reserved_emergency) return;
     room.schedule.forEach(ev => {
-      if (ev.reserved) return;
-      totalRequested++;
-      if (!ev.unscheduled) totalScheduled++;
+      if (ev.reserved || ev.unscheduled) return;
+      const duration = ev.duration || 60;
+      const complexity = Math.min(3, Math.floor(duration / 60));
+      complexityData[complexity]++;
     });
   });
 
-  const rataPlanificare = totalRequested ? Math.round((totalScheduled / totalRequested) * 100) : 0;
-  document.getElementById("avgUtil").textContent = rataPlanificare + "%";
-  document.getElementById("unscheduledCount").textContent = unscheduledCount;
-  document.getElementById("avgRoomUtil").textContent = (room_util_pct.reduce((a,b)=>a+b,0)/room_util_pct.length).toFixed(1) + "%";
-
-  const palette = ["#1b6ca8", "#51a3a3", "#f7c548", "#f55c47", "#8338ec", "#06d6a0", "#ff6b6b"];
-  const legendBottom = { plugins: { legend: { position: "bottom" } } };
-
-  new Chart("roomUtilChart", {
-    type: "bar",
-    data: { labels: room_labels, datasets: [{ label: "% ocupare", data: room_util_pct, backgroundColor: palette[0] }] },
-    options: legendBottom
-  });
-
-  new Chart("nurseLoadChart", {
-    type: "bar",
-    data: { labels: Object.keys(asistenta_counts), datasets: [{ label: "Sarcini/asistentă", data: Object.values(asistenta_counts), backgroundColor: palette[2] }] },
-    options: legendBottom
-  });
-
-  new Chart("doctorLoadChart", {
-    type: "bar",
-    data: { labels: Object.keys(doctor_counts), datasets: [{ label: "Sarcini/doctor", data: Object.values(doctor_counts), backgroundColor: palette[4] }] },
-    options: legendBottom
-  });
-
-  new Chart("costChart", {
+  new Chart("complexityChart", {
     type: "bar",
     data: {
-      labels: ["idle", "clean", "dirty"],
-      datasets: [{ label: "Cost (min)", data: [idle_per_room.reduce((a,b)=>a+b,0), clean_total, dirty_penalty], backgroundColor: palette.slice(0, 3) }]
+      labels: ["Simplă (0-1h)", "Medie (1-2h)", "Complexă (2-3h)", "Foarte Complexă (3h+)"],
+      datasets: [{
+        label: "Numărul de intervenții",
+        data: complexityData,
+        backgroundColor: ['#28a745', '#ffc107', '#fd7e14', '#dc3545'],
+        borderRadius: 8
+      }]
     },
-    options: legendBottom
+    options: chartDefaults
   });
 
+
+
+  // 5. Nurse Workload Chart
+  new Chart("nurseLoadChart", {
+    type: "bar",
+    data: {
+      labels: Object.keys(nurse_counts),
+      datasets: [{
+        label: "Numărul de intervenții",
+        data: Object.values(nurse_counts),
+        backgroundColor: modernPalette[2],
+        borderColor: modernPalette[3],
+        borderWidth: 2,
+        borderRadius: 8
+      }]
+    },
+    options: chartDefaults
+  });
+
+  // 6. Doctor Workload Chart
+  new Chart("doctorLoadChart", {
+    type: "bar",
+    data: {
+      labels: Object.keys(doctor_counts),
+      datasets: [{
+        label: "Numărul de intervenții",
+        data: Object.values(doctor_counts),
+        backgroundColor: modernPalette[4],
+        borderColor: modernPalette[5],
+        borderWidth: 2,
+        borderRadius: 8
+      }]
+    },
+    options: chartDefaults
+  });
+
+  // 7. Cost Analysis Chart
+  const totalIdle = room_idle_times.reduce((a,b)=>a+b,0);
+  const dirtyPenalty = (totalSurgeries - cleanSurgeries) * 30; // Estimated dirty penalty
+  
+  new Chart("costChart", {
+    type: "doughnut",
+    data: {
+      labels: ["Timp Inactiv", "Timp Curățare", "Penalizare Murdărie"],
+      datasets: [{
+        data: [totalIdle, totalCleaningTime, dirtyPenalty],
+        backgroundColor: [modernPalette[6], modernPalette[7], modernPalette[8]],
+        borderWidth: 3,
+        borderColor: '#fff'
+      }]
+    },
+    options: chartDefaults
+  });
+
+  // 8. Surgery vs Cleaning Time
   new Chart("timeBreakChart", {
     type: "doughnut",
     data: {
-      labels: ["Chirurgie", "Curățare"],
-      datasets: [{ data: [totalUsedMinutes, clean_total], backgroundColor: [palette[1], palette[3]] }]
+      labels: ["Timp Intervenții", "Timp Curățare"],
+      datasets: [{
+        data: [totalSurgeryTime, totalCleaningTime],
+        backgroundColor: [modernPalette[1], modernPalette[9]],
+        borderWidth: 3,
+        borderColor: '#fff'
+      }]
     },
-    options: legendBottom
+    options: chartDefaults
   });
 
+  // 9. Timeline Distribution
+  const timeLabels = [];
+  const timeData = [];
+  for (let i = 8; i <= 17; i++) {
+    timeLabels.push(`${i}:00`);
+    timeData.push(hourlyDistribution[i] || 0);
+  }
+  
+  new Chart("timelineChart", {
+    type: "line",
+    data: {
+      labels: timeLabels,
+      datasets: [{
+        label: "Intervenții programate",
+        data: timeData,
+        borderColor: modernPalette[0],
+        backgroundColor: modernPalette[0] + '20',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: chartDefaults
+  });
+
+  // 10. Room Idle Time Chart
   new Chart("idleChart", {
     type: "bar",
-    data: { labels: room_labels, datasets: [{ label: "Idle (min)", data: idle_per_room, backgroundColor: palette[5] }] },
-    options: legendBottom
+    data: {
+      labels: room_labels,
+      datasets: [{
+        label: "Timp Inactiv (minute)",
+        data: room_idle_times,
+        backgroundColor: modernPalette[10],
+        borderColor: modernPalette[11],
+        borderWidth: 2,
+        borderRadius: 8
+      }]
+    },
+    options: chartDefaults
+  });
+  // === GRAFIC TIPURI DE INTERVENȚII ===
+const sortedTypes = Object.entries(surgeryTypes)
+    .sort((a, b) => b[1] - a[1])  // ordonare descrescătoare
+    .slice(0, 8);                 // top 8 tipuri
+
+  const typeLabels = sortedTypes.map(([label]) => label);
+  const typeData   = sortedTypes.map(([, value]) => value);
+
+  new Chart("surgeryTypesChart", {
+    type: "bar",
+    data: {
+      labels: typeLabels,
+      datasets: [{
+        label: "Număr intervenții",
+        data: typeData,
+        backgroundColor: modernPalette.slice(0, typeLabels.length),
+        borderRadius: 8
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+
+  // 11. Long Surgery Performance
+  const longSurgeryData = {
+    scheduled: 0,
+    unscheduled: 0,
+    earlyScheduled: 0
+  };
+  
+  timetable.forEach(room => {
+    room.schedule.forEach(ev => {
+      if (ev.reserved) return;
+      const duration = ev.duration || 0;
+      if (duration > 120) {
+        if (ev.unscheduled) {
+          longSurgeryData.unscheduled++;
+        } else {
+          longSurgeryData.scheduled++;
+          const [sh] = ev.start_time.split(":").map(Number);
+          if (sh <= 10) longSurgeryData.earlyScheduled++;
+        }
+      }
+    });
+  });
+
+  new Chart("longSurgeryChart", {
+    type: "bar",
+    data: {
+      labels: ["Programate", "Neprogramate", "Programate Dimineața"],
+      datasets: [{
+        label: "Operații lungi (>2h)",
+        data: [longSurgeryData.scheduled, longSurgeryData.unscheduled, longSurgeryData.earlyScheduled],
+        backgroundColor: [modernPalette[4], modernPalette[8], modernPalette[6]],
+        borderRadius: 8
+      }]
+    },
+    options: chartDefaults
+  });
+
+  // 12. Clean vs Dirty Surgery Efficiency
+  const cleanUtilization = [];
+  const dirtyUtilization = [];
+  
+  timetable.forEach(room => {
+    if (room.room === "neplanificate" || room.reserved_emergency) return;
+    
+    let cleanTime = 0, dirtyTime = 0;
+    room.schedule.forEach(ev => {
+      if (ev.reserved || ev.unscheduled) return;
+      const duration = ev.duration || 0;
+      if (ev.is_clean) {
+        cleanTime += duration;
+      } else {
+        dirtyTime += duration;
+      }
+    });
+    
+    const totalRoomTime = DAY_END - DAY_START;
+    cleanUtilization.push((cleanTime / totalRoomTime) * 100);
+    dirtyUtilization.push((dirtyTime / totalRoomTime) * 100);
+  });
+
+  new Chart("cleanDirtyChart", {
+    type: "bar",
+    data: {
+      labels: room_labels,
+      datasets: [
+        {
+          label: "Operații Curate (%)",
+          data: cleanUtilization,
+          backgroundColor: modernPalette[6],
+          borderRadius: 8
+        },
+        {
+          label: "Operații Murdare (%)",
+          data: dirtyUtilization,
+          backgroundColor: modernPalette[8],
+          borderRadius: 8
+        }
+      ]
+    },
+    options: {
+      ...chartDefaults,
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, beginAtZero: true, max: 100 }
+      }
+    }
   });
 });
 </script>

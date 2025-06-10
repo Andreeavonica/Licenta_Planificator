@@ -701,6 +701,23 @@ def manager_dashboard(request):
         "idle_labels": room_labels,
         "idle_values": idle_per_room,
     }
+    from collections import Counter
+
+    surgery_type_counts = Counter()
+
+    for row in timetable:
+        for ev in row["schedule"]:
+            if ev.get("reserved"): continue
+            surgery_type_counts[ev.get("type", "Necunoscut")] += 1
+
+    top_types = surgery_type_counts.most_common(8)
+    surgery_type_labels = [t[0] for t in top_types]
+    surgery_type_values = [t[1] for t in top_types]
+
+    context.update({
+        "surgery_type_labels": surgery_type_labels,
+        "surgery_type_values": surgery_type_values,
+    })
 
     return render(request, "calendarapp/dashboard.html", context)
 
