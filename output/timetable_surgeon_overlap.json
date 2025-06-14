@@ -1,0 +1,40 @@
+[
+  {
+    "room": 1,
+    "schedule": [
+      {
+        "id": 301,
+        "type": "T1",
+        "start_time": "8:00",
+        "end_time": "10:00",
+        "surgeon": "DrOverlap",
+        "patient": "P1",
+        "duration": 120,
+        "clean_time": 10,
+        "is_clean": true,
+        "nurse": "N",
+        "nurse_id": 9
+      }
+    ],
+    "total_used": 130
+  },
+  {
+    "room": 2,
+    "schedule": [
+      {
+        "id": 300,
+        "type": "T0",
+        "start_time": "10:00",
+        "end_time": "12:00",
+        "surgeon": "DrOverlap",
+        "patient": "P0",
+        "duration": 120,
+        "clean_time": 10,
+        "is_clean": true,
+        "nurse": "N",
+        "nurse_id": 9
+      }
+    ],
+    "total_used": 250
+  }
+]

@@ -230,7 +230,7 @@ class CalendarViewNew(LoginRequiredMixin, generic.View):
 
         notifications = []
         if request.user.is_authenticated:
-            notifications = request.user.notifications.filter(is_read=False)[:5]
+            notifications = request.user.notifications.filter(is_read=False)[:10]
         context = {
             "form": forms,
             "events": event_list,

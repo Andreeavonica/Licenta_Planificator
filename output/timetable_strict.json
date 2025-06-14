@@ -1,0 +1,146 @@
+[
+  {
+    "room": 1,
+    "schedule": [
+      {
+        "id": 205,
+        "type": "Procedure 5",
+        "start_time": "8:00",
+        "end_time": "10:00",
+        "surgeon": "Dr. 1",
+        "patient": "Patient 5",
+        "duration": 120,
+        "clean_time": 10,
+        "is_clean": true,
+        "nurse": "Nurse 2",
+        "nurse_id": 102
+      },
+      {
+        "id": 207,
+        "type": "Procedure 7",
+        "start_time": "10:10",
+        "end_time": "12:10",
+        "surgeon": "Dr. 1",
+        "patient": "Patient 7",
+        "duration": 120,
+        "clean_time": 10,
+        "is_clean": true,
+        "nurse": "Nurse 4",
+        "nurse_id": 104
+      },
+      {
+        "id": 202,
+        "type": "Procedure 2",
+        "start_time": "12:20",
+        "end_time": "14:20",
+        "surgeon": "Dr. 0",
+        "patient": "Patient 2",
+        "duration": 120,
+        "clean_time": 10,
+        "is_clean": true,
+        "nurse": "Nurse 1",
+        "nurse_id": 101
+      },
+      {
+        "id": 204,
+        "type": "Procedure 4",
+        "start_time": "14:30",
+        "end_time": "16:30",
+        "surgeon": "Dr. 0",
+        "patient": "Patient 4",
+        "duration": 120,
+        "clean_time": 10,
+        "is_clean": true,
+        "nurse": "Nurse 4",
+        "nurse_id": 104
+      }
+    ],
+    "total_used": 520
+  },
+  {
+    "room": 2,
+    "schedule": [
+      {
+        "id": 206,
+        "type": "Procedure 6",
+        "start_time": "8:00",
+        "end_time": "9:30",
+        "surgeon": "Dr. 0",
+        "patient": "Patient 6",
+        "duration": 90,
+        "clean_time": 30,
+        "is_clean": false,
+        "nurse": "Nurse 0",
+        "nurse_id": 100
+      }
+    ],
+    "total_used": 120
+  },
+  {
+    "room": 3,
+    "schedule": [
+      {
+        "id": 208,
+        "type": "Procedure 8",
+        "start_time": "9:30",
+        "end_time": "12:00",
+        "surgeon": "Dr. 0",
+        "patient": "Patient 8",
+        "duration": 150,
+        "clean_time": 10,
+        "is_clean": true,
+        "nurse": "Nurse 3",
+        "nurse_id": 103
+      },
+      {
+        "id": 201,
+        "type": "Procedure 1",
+        "start_time": "12:10",
+        "end_time": "14:10",
+        "surgeon": "Dr. 1",
+        "patient": "Patient 1",
+        "duration": 120,
+        "clean_time": 10,
+        "is_clean": true,
+        "nurse": "Nurse 2",
+        "nurse_id": 102
+      },
+      {
+        "id": 209,
+        "type": "Procedure 9",
+        "start_time": "14:20",
+        "end_time": "16:20",
+        "surgeon": "Dr. 1",
+        "patient": "Patient 9",
+        "duration": 120,
+        "clean_time": 30,
+        "is_clean": false,
+        "nurse": "Nurse 1",
+        "nurse_id": 101
+      }
+    ],
+    "total_used": 530
+  },
+  {
+    "room": "neplanificate",
+    "schedule": [
+      {
+        "id": 203,
+        "type": "Procedure 3",
+        "duration": 150,
+        "surgeon": "Dr. 1",
+        "patient": "Patient 3",
+        "unscheduled": true
+      },
+      {
+        "id": 200,
+        "type": "Procedure 0",
+        "duration": 150,
+        "surgeon": "Dr. 0",
+        "patient": "Patient 0",
+        "unscheduled": true
+      }
+    ],
+    "total_used": 0
+  }
+]

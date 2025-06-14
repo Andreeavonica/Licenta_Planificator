@@ -22,9 +22,6 @@ Algoritm de planificare a intervențiilor chirurgicale – versiune optimizată
 5. Testare mai robustă a constrângerilor
 """
 
-# =====================
-# —— CONSTANTE ————
-# =====================
 DAY_START = 8 * 60                # 08:00 în minute
 DAY_END = 17 * 60                 # 17:00 în minute
 LATE_PENALTY_COEFF = 0.5          # ponderarea lateness (pe ore)
