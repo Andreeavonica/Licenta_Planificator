@@ -93,7 +93,7 @@
   font-size:16px;
   font-weight:bold;
   text-align:center;
-  background:#3498db;
+  background:#80868a;
   color:#fff;
 }
 
@@ -155,11 +155,22 @@
 {% block extrascripts %}
 <script>
 let lastScheduleData = null;
-
-function randomColor(id){
-  const colors=['#4dabf7','#20c997','#fcc419','#f783ac','#845ef7','#38d9a9'];
-  return colors[id%colors.length];
+function randomColor(id) {
+  const colors = [
+    "#009688", // originalul
+    "#00796B", // puțin mai închis
+    "#26A69A", // puțin mai deschis
+    "#004D40", // mai profund
+    "#00BFA5", // mai viu
+    "#4DB6AC", // pastelat
+    "#00897B", // între mediu și închis
+    "#1DE9B6", // mai electric
+    "#00695C", // închis dar clar
+    "#33ABA0"  // mediu și echilibrat
+  ];
+  return colors[id % colors.length];
 }
+
 
 function runSchedule(){
   const selectedDate=document.getElementById("selectedDate").value;

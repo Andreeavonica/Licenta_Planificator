@@ -112,7 +112,7 @@ class Event(EventAbstract):
     )
     PRIORITY_CHOICES = (
     (1, "Scăzută"),
-    (2, "Normală"),     # DEFAULT
+    (2, "Normală"),     
     (3, "Înaltă"),
 )
     prioritate = models.PositiveSmallIntegerField(

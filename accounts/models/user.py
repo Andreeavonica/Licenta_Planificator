@@ -46,7 +46,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     """ Custom user model """
 
     ROLE_CHOICES = [
-        ("patient", "Pacient"),
         ("manager", "Manager"),
         ("surgeon", "Chirurg"),
         ("assistant", "Asistenta"),
